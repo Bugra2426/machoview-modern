@@ -253,8 +253,8 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 //----------------------------------------------------------------------------
 - (void)saveAttributestoFile:(FILE *)pFile
 {
-  uint32_t numAttributes = attributes.count;
-  fwrite (&numAttributes, sizeof(uint32_t), 1, pFile);
+  uint64_t numAttributes = attributes.count;
+  fwrite (&numAttributes, sizeof(uint64_t), 1, pFile);
   
   for (NSString * key in attributes.allKeys)
   {
@@ -285,8 +285,8 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 //----------------------------------------------------------------------------
 - (void)loadAttributesFromFile:(FILE *)pFile
 {
-  uint32_t numAttributes;
-  fread (&numAttributes, sizeof(uint32_t), 1, pFile);
+  uint64_t numAttributes;
+  fread (&numAttributes, sizeof(uint64_t), 1, pFile);
   
   NSMutableDictionary * _attributes = [[NSMutableDictionary alloc] initWithCapacity:numAttributes];
   while (numAttributes-- > 0)
@@ -313,7 +313,7 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
   
   if (coloumnsOffset == 0) // isSaved == NO
   {
-    uint32_t filePos = ftell(pFile);
+    uint64_t filePos = ftell(pFile);
     [self writeString:coloumns.offsetStr toFile:(FILE *)pFile];
     [self writeString:coloumns.dataStr toFile:(FILE *)pFile];
     [self writeString:coloumns.descriptionStr toFile:(FILE *)pFile];
@@ -341,7 +341,7 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
       attributes = _attributes;
     }
     
-    uint32_t filePos = ftell(pFile);
+    uint64_t filePos = ftell(pFile);
     [self saveAttributestoFile:(FILE *)pFile];
     dirty = NO;
     attributesOffset = filePos;
@@ -389,18 +389,18 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 //----------------------------------------------------------------------------
 - (void)saveIndexToFile:(FILE *)pFile
 {
-  fwrite(&offset, sizeof(uint32_t), 1, pFile);
-  fwrite(&coloumnsOffset, sizeof(uint32_t), 1, pFile);
-  fwrite(&attributesOffset, sizeof(uint32_t), 1, pFile);
+  fwrite(&offset, sizeof(uint64_t), 1, pFile);
+  fwrite(&coloumnsOffset, sizeof(uint64_t), 1, pFile);
+  fwrite(&attributesOffset, sizeof(uint64_t), 1, pFile);
   fwrite(&deleted, sizeof(BOOL), 1, pFile);
 }
 
 //----------------------------------------------------------------------------
 - (void)loadIndexFromFile:(FILE *)pFile
 {
-  fread(&offset, sizeof(uint32_t), 1, pFile);
-  fread(&coloumnsOffset, sizeof(uint32_t), 1, pFile);
-  fread(&attributesOffset, sizeof(uint32_t), 1, pFile);
+  fread(&offset, sizeof(uint64_t), 1, pFile);
+  fread(&coloumnsOffset, sizeof(uint64_t), 1, pFile);
+  fread(&attributesOffset, sizeof(uint64_t), 1, pFile);
   fread(&deleted, sizeof(BOOL), 1, pFile);
 }
 
@@ -488,7 +488,7 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 }
 
 //----------------------------------------------------------------------------
-- (void)insertRowWithOffset:(uint32_t)offset :(id)col0 :(id)col1 :(id)col2 :(id)col3
+- (void)insertRowWithOffset:(uint64_t)offset :(id)col0 :(id)col1 :(id)col2 :(id)col3
 {
   MVRow * row = [[MVRow alloc] init];
   row.coloumns = [MVColoumns coloumnsWithData:col0:col1:col2:col3];
@@ -677,8 +677,8 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 //----------------------------------------------------------------------------
 - (void)saveIndexes
 {
-  uint32_t rowCount = rows.count;
-  fwrite(&rowCount, sizeof(uint32_t), 1, swapFile);
+  uint64_t rowCount = rows.count;
+  fwrite(&rowCount, sizeof(uint64_t), 1, swapFile);
 
   for (MVRow * row in rows)
   {
@@ -689,8 +689,8 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 //----------------------------------------------------------------------------
 - (void)loadIndexes
 {
-  uint32_t rowCount;
-  fread(&rowCount, sizeof(uint32_t), 1, swapFile);
+  uint64_t rowCount;
+  fread(&rowCount, sizeof(uint64_t), 1, swapFile);
   
   while (rowCount-- > 0)
   {
@@ -778,8 +778,8 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 
 //----------------------------------------------------------------------------
 - (MVNode *)insertChild:(NSString *)_caption
-            location:(uint32_t)location 
-              length:(uint32_t)length
+            location:(uint64_t)location
+              length:(uint64_t)length
 {
   MVNode * node = [[MVNode alloc] init];
   node.caption = _caption;
@@ -792,8 +792,8 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 
 //----------------------------------------------------------------------------
 - (MVNode *)insertChildWithDetails:(NSString *)_caption 
-                       location:(uint32_t)location 
-                         length:(uint32_t)length
+                       location:(uint64_t)location
+                         length:(uint64_t)length
                           saver:(MVNodeSaver &)saver
 {
   MVNode * node = [self insertChild:_caption location:location length:length];
@@ -880,7 +880,7 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
   MVLayout * layout = userInfo[MVLayoutUserInfoKey];
   [layout.dataController updateStatus:MVStatusTaskStarted];
   
-  uint32_t filePos = ftell(pFile);
+  uint64_t filePos = ftell(pFile);
   details.swapFile = pFile;
   [details saveIndexes];
   detailsOffset = filePos; 
@@ -1100,8 +1100,8 @@ NSString * const MVStatusTaskTerminated           = @"MVStatusTaskTerminated";
 //----------------------------------------------------------------------------
 // create Mach-O layouts based on file headers
 - (void)createLayouts:(MVNode *)parent
-             location:(uint32_t)location
-               length:(uint32_t)length
+             location:(uint64_t)location
+               length:(uint64_t)length
 {
   uint32_t magic = *(uint32_t*)((uint8_t *)fileData.bytes + location);
   

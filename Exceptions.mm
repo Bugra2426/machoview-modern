@@ -142,7 +142,7 @@ using namespace std;
 ((format & 0xf) == DW_EH_PE_udata4 || (format & 0xf) == DW_EH_PE_sdata4) ? sizeof(uint32_t) : \
 ((format & 0xf) == DW_EH_PE_udata8 || (format & 0xf) == DW_EH_PE_sdata8) ? sizeof(uint64_t) : \
 ((format & 0xf) == DW_EH_PE_uleb128 || (format & 0xf) == DW_EH_PE_sleb128) ? 0 : \
-([self is64bit] == NO) ? sizeof(uint32_t) : sizeof(uint64_t)
+(self.is64bit == NO) ? sizeof(uint32_t) : sizeof(uint64_t)
 
 //-----------------------------------------------------------------------------
 #define READ_USE_ENCODING(format,range,hexstr) \
@@ -151,12 +151,13 @@ using namespace std;
   ((format & 0xf) == DW_EH_PE_udata8 || (format & 0xf) == DW_EH_PE_sdata8) ? [dataController read_uint64:range lastReadHex:&hexstr] : \
   (format & 0xf) == DW_EH_PE_uleb128 ? [dataController read_uleb128:range lastReadHex:&hexstr] : \
   (format & 0xf) == DW_EH_PE_sleb128 ? [dataController read_sleb128:range lastReadHex:&hexstr] : \
-  ([self is64bit] == NO) ? [dataController read_uint32:range lastReadHex:&hexstr] : [dataController read_uint64:range lastReadHex:&hexstr]
+  (self.is64bit == NO) ? [dataController read_uint32:range lastReadHex:&hexstr] : [dataController read_uint64:range lastReadHex:&hexstr]
 
 //-----------------------------------------------------------------------------
-- (NSString *)guessSymbolUsingEncoding:(uint8_t)format atOffset:(uint32_t)offset withValue:(uint32_t &)value
+- (NSString *)guessSymbolUsingEncoding:(uint8_t)format atOffset:(uint64_t)offset withValue:(uint32_t &)value
 {
-  NSParameterAssert([self is64bit] == NO);
+  NSParameterAssert(self.is64bit == NO);
+  NSParameterAssert(offset < UINT_MAX);
                     
   if (value == 0)
   {
@@ -176,9 +177,9 @@ using namespace std;
 }
 
 //-----------------------------------------------------------------------------
-- (NSString *)guessSymbol64UsingEncoding:(uint8_t)format atOffset:(uint32_t)offset withValue:(uint64_t &)value
+- (NSString *)guessSymbol64UsingEncoding:(uint8_t)format atOffset:(uint64_t)offset withValue:(uint64_t &)value
 {
-  NSParameterAssert([self is64bit] == YES);
+  NSParameterAssert(self.is64bit == YES);
   
   if (value == 0)
   {
@@ -198,7 +199,7 @@ using namespace std;
    
   NSString * symbolName = [self findSymbolAtRVA64:value];
   
-  //NSLog(@"guessed at %qX [%qX]: %@", [self fileOffsetToRVA64:offset], value, symbolName);
+  //NSLog(@"guessed at %llX [%llX]: %@", [self fileOffsetToRVA64:offset], value, symbolName);
   
   return symbolName;
 }
@@ -208,8 +209,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createCFINode:(MVNode *)parent
                 caption:(NSString *)caption
-               location:(uint32_t)location
-                 length:(uint32_t)length
+               location:(uint64_t)location
+                 length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -344,7 +345,7 @@ using namespace std;
           [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                                  :lastReadHex
                                  :@"Personality Routine"
-                                 :[self is64bit] == NO
+                                 :self.is64bit == NO
                                     ? [self guessSymbolUsingEncoding:PR_encoding atOffset:range.location withValue:(uint32_t &)PR_offset]
                                     : [self guessSymbol64UsingEncoding:PR_encoding atOffset:range.location withValue:PR_offset]];
         } break;
@@ -415,14 +416,14 @@ using namespace std;
       break;
     }
     
-    uint64_t FDE_CIEpointer = ([self is64bit] == NO 
-                                ? [self fileOffsetToRVA:range.location] 
+    uint64_t FDE_CIEpointer = (self.is64bit == NO 
+                                ? [self fileOffsetToRVA:range.location]
                                 : [self fileOffsetToRVA64:range.location]) - FDE_CIEvalue;
 
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"CIE Pointer"
-                           :[self is64bit] == NO
+                           :self.is64bit == NO
                               ? [self findSymbolAtRVA:(uint32_t)FDE_CIEpointer]
                               : [self findSymbolAtRVA64:FDE_CIEpointer]];
     
@@ -432,7 +433,7 @@ using namespace std;
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"PC Begin"
-                           :[self is64bit] == NO
+                           :self.is64bit == NO
                               ? (symbolName = [self guessSymbolUsingEncoding:Pointer_encoding atOffset:range.location withValue:(uint32_t &)PCBegin_addr])
                               : (symbolName = [self guessSymbol64UsingEncoding:Pointer_encoding atOffset:range.location withValue:PCBegin_addr])];
 
@@ -464,7 +465,7 @@ using namespace std;
         [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                                :lastReadHex
                                :@"LSDA"
-                               :[self is64bit] == NO 
+                               :self.is64bit == NO 
                                   ? [self guessSymbolUsingEncoding:LSDA_encoding atOffset:range.location withValue:(uint32_t &)LSDA_addr]
                                   : [self guessSymbol64UsingEncoding:LSDA_encoding atOffset:range.location withValue:LSDA_addr]];
         
@@ -530,8 +531,8 @@ using namespace std;
 
 - (MVNode *)createLSDANode:(MVNode *)parent
                  caption:(NSString *)caption
-                location:(uint32_t)location
-                  length:(uint32_t)length
+                location:(uint64_t)location
+                  length:(uint64_t)length
           eh_frame_begin:(uint64_t)eh_frame_begin
               
 {
@@ -554,7 +555,7 @@ using namespace std;
                          :@"@TType format"
                          :[self getNameForEncoding:typeTableFormat]];
   
-  uint32_t typeTableBaseLocation = 0;
+  uint64_t typeTableBaseLocation = 0;
   if (typeTableFormat != DW_EH_PE_omit)
   {
     uint64_t typeTableBaseOffset = [dataController read_uleb128:range lastReadHex:&lastReadHex];
@@ -562,8 +563,8 @@ using namespace std;
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"Type Table Base"
-                           :[self is64bit] == NO ? [NSString stringWithFormat:@"0x%X",[self fileOffsetToRVA:typeTableBaseLocation]] : 
-                                                   [NSString stringWithFormat:@"0x%qX",[self fileOffsetToRVA64:typeTableBaseLocation]]];
+                           :self.is64bit == NO ? [NSString stringWithFormat:@"0x%X",[self fileOffsetToRVA:typeTableBaseLocation]] :
+                                                   [NSString stringWithFormat:@"0x%llX",[self fileOffsetToRVA64:typeTableBaseLocation]]];
   }
     
   uint8_t callSiteFormat = [dataController read_uint8:range lastReadHex:&lastReadHex];
@@ -591,7 +592,7 @@ using namespace std;
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"region start"
-                           :[NSString stringWithFormat:@"0x%qX", eh_frame_begin + regionStart]];
+                           :[NSString stringWithFormat:@"0x%llX", eh_frame_begin + regionStart]];
     
     uint64_t regionLength = READ_USE_ENCODING(callSiteFormat,range,lastReadHex);
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -603,7 +604,7 @@ using namespace std;
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"landing pad"
-                           :landingPad == 0 ? @"0x0" : [NSString stringWithFormat:@"0x%qX", eh_frame_begin + landingPad]];
+                           :landingPad == 0 ? @"0x0" : [NSString stringWithFormat:@"0x%llX", eh_frame_begin + landingPad]];
     
     uint64_t action = [dataController read_uleb128:range lastReadHex:&lastReadHex];
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -623,7 +624,7 @@ using namespace std;
   //================== Action record table ================
   if (typeTableFormat != DW_EH_PE_omit)
   {
-    typedef set<int32_t> IndexSet;
+    typedef set<int64_t> IndexSet;
     IndexSet typeIndexes;
     IndexSet exceptionSpecs;
 
@@ -668,7 +669,7 @@ using namespace std;
     // collect additional type indexes from exception specifications
     for (IndexSet::iterator iter = exceptionSpecs.begin(); iter != exceptionSpecs.end(); ++iter)
     {
-      int32_t index = *iter;
+      int64_t index = *iter;
 
       NSRange range = NSMakeRange(typeTableBaseLocation - index - 1, 0);
       
@@ -690,7 +691,7 @@ using namespace std;
     // traverse type filters in reverse order (starting with the catch clauses)
     for (IndexSet::reverse_iterator iter = typeIndexes.rbegin(); iter != typeIndexes.rend(); ++iter)
     {
-      int32_t index = *iter;
+      int64_t index = *iter;
       NSParameterAssert (index > 0);
       
       // Positive value, starting at 1. Index in the types table of the __typeinfo for the catch-clause type. 
@@ -704,7 +705,7 @@ using namespace std;
       [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                               :lastReadHex
                               :@"Type Info"
-                              :[self is64bit] == NO
+                              :self.is64bit == NO
                                 ? [self guessSymbolUsingEncoding:typeTableFormat atOffset:range.location withValue:(uint32_t &)typeInfo]
                                 : [self guessSymbol64UsingEncoding:typeTableFormat atOffset:range.location withValue:typeInfo]];
     }
@@ -732,7 +733,7 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createUnwindInfoHeaderNode:(MVNode *)parent
                                caption:(NSString *)caption
-                              location:(uint32_t)location
+                              location:(uint64_t)location
                                 header:(struct unwind_info_section_header const *)unwind_info_section_header
 {
   MVNodeSaver nodeSaver;
@@ -753,7 +754,7 @@ using namespace std;
   [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                          :lastReadHex
                          :@"Common Enc Array Sect Offset"
-                         :[self is64bit] == NO 
+                         :self.is64bit == NO 
                             ? [self findSymbolAtRVA:[self fileOffsetToRVA:range.location] + commonEncodingsArraySectionOffset]
                             : [self findSymbolAtRVA64:[self fileOffsetToRVA64:range.location] + commonEncodingsArraySectionOffset]];
   
@@ -767,7 +768,7 @@ using namespace std;
   [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                          :lastReadHex
                          :@"Personality Array Sect Offset"
-                         :[self is64bit] == NO 
+                         :self.is64bit == NO 
                             ? [self findSymbolAtRVA:[self fileOffsetToRVA:range.location] + personalityArraySectionOffset]
                             : [self findSymbolAtRVA64:[self fileOffsetToRVA64:range.location] + personalityArraySectionOffset]];
 
@@ -781,7 +782,7 @@ using namespace std;
   [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                          :lastReadHex
                          :@"Index Section Offset"
-                         :[self is64bit] == NO 
+                         :self.is64bit == NO 
                             ? [self findSymbolAtRVA:[self fileOffsetToRVA:range.location] + indexSectionOffset]
                             : [self findSymbolAtRVA64:[self fileOffsetToRVA64:range.location] + indexSectionOffset]];  
 

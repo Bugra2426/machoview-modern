@@ -20,8 +20,8 @@
 {
   MVNode *              __weak rootNode;
   MVDataController *    __weak dataController;
-  uint32_t              imageOffset;  // absolute physical offset of the image in binary
-  uint32_t              imageSize;    // size of the image corresponds to this layout
+  uint64_t              imageOffset;  // absolute physical offset of the image in binary
+  uint64_t              imageSize;    // size of the image corresponds to this layout
   NSThread *            backgroundThread;
   MVArchiver *          archiver;
 }
@@ -30,8 +30,9 @@
 @property(nonatomic,readonly)       NSThread * backgroundThread;
 @property(nonatomic,readonly)       MVArchiver * archiver;
 
+- (instancetype)        init NS_UNAVAILABLE;
 - (instancetype)        initWithDataController:(MVDataController *)dc rootNode:(MVNode *)node NS_DESIGNATED_INITIALIZER;
-- (void const *)        imageAt:(uint32_t)location NS_RETURNS_INNER_POINTER;
+- (void const *)        imageAt:(uint64_t)location NS_RETURNS_INNER_POINTER;
 - (void)                printException:(NSException *)exception caption:(NSString *)caption;
 - (BOOL)                is64bit;
 - (void)                doMainTasks;
@@ -41,7 +42,7 @@
 
 - (MVNode *)            createDataNode:(MVNode *)parent
                                caption:(NSString *)caption
-                              location:(uint32_t)location
-                                length:(uint32_t)length;
+                              location:(uint64_t)location
+                                length:(uint64_t)length;
 
 @end

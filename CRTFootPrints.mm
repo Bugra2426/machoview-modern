@@ -1364,7 +1364,7 @@ static AsmFootPrint const SDK109Target104X86 = {
 @implementation MachOLayout (CRTFootPrints)
 
 //------------------------------------------------------------------------------
-- (bool) matchAsmAtOffset:(uint32_t)offset 
+- (bool) matchAsmAtOffset:(uint64_t)offset 
              asmFootPrint:(const AsmFootPrint)footprint 
                 lineCount:(NSUInteger)lineCount
 {
@@ -1405,13 +1405,13 @@ static AsmFootPrint const SDK109Target104X86 = {
   }
   
   // find file offset of the entry point
-  uint32_t offset = [self is64bit] == NO 
-                      ? [self RVAToFileOffset:entryPoint] 
+  uint64_t offset = self.is64bit == NO
+                      ? [self RVAToFileOffset:(uint32_t)entryPoint]
                       : [self RVA64ToFileOffset:entryPoint];
   
-  NSLog(@"%@: file offset of OEP: 0x%X", self, offset);
+  NSLog(@"%@: file offset of OEP: 0x%llX", self, offset);
   
-  uint32_t dataLength = (dataController.fileData).length;
+  uint64_t dataLength = (dataController.fileData).length;
   
   if (offset >= dataLength)
   {
@@ -1419,7 +1419,7 @@ static AsmFootPrint const SDK109Target104X86 = {
   }
   
   // test against footprints
-  if ([self is64bit] == NO)
+  if (self.is64bit == NO)
   {
     if (MATCHASM(SDK104Target104X86v1))
     {

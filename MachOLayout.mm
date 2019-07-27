@@ -23,13 +23,6 @@ using namespace std;
 //============================================================================
 @implementation MachOLayout
 
-// ----------------------------------------------------------------------------
-- (instancetype)init
-{
-  NSAssert(NO, @"plain init is not allowed");
-  return nil;
-}
-
 //-----------------------------------------------------------------------------
 - (instancetype)initWithDataController:(MVDataController *)dc rootNode:(MVNode *)node 
 {
@@ -96,24 +89,25 @@ using namespace std;
 }
 
 //-----------------------------------------------------------------------------
-- (NSString *)findSymbolAtRVA:(uint32_t)rva
+- (NSString *)findSymbolAtRVA:(uint64_t)rva
 {
-  NSParameterAssert([self is64bit] == NO);
+  NSParameterAssert(self.is64bit == NO);
+  NSParameterAssert(rva < UINT_MAX);
   NSString * symbolName = symbolNames[@(rva)];
-  return (symbolName != nil ? symbolName : [NSString stringWithFormat:@"0x%X",rva]);
+  return (symbolName != nil ? symbolName : [NSString stringWithFormat:@"0x%llX",rva]);
 }
 
 //-----------------------------------------------------------------------------
 - (NSString *)findSymbolAtRVA64:(uint64_t)rva64
 {
-  NSParameterAssert([self is64bit] == YES);
+  NSParameterAssert(self.is64bit == YES);
   // extend external symbols represented in 32bit to 64bit
   if ((int32_t)rva64 < 0)
   {
     rva64 |= 0xffffffff00000000LL;
   }
   NSString * symbolName = symbolNames[@(rva64)];
-  return (symbolName != nil ? symbolName : [NSString stringWithFormat:@"0x%qX",rva64]);
+  return (symbolName != nil ? symbolName : [NSString stringWithFormat:@"0x%llX",rva64]);
 }
 
 //-----------------------------------------------------------------------------
@@ -153,124 +147,120 @@ using namespace std;
 }
 
 //-----------------------------------------------------------------------------
-- (uint32_t)fileOffsetToRVA: (uint32_t)offset
+- (uint32_t)fileOffsetToRVA: (uint64_t)offset
 {
-  NSParameterAssert([self is64bit] == NO);
+  NSParameterAssert(self.is64bit == NO);
+  NSParameterAssert(offset < UINT_MAX);
   
   SegmentInfoMap::const_iterator segIter = segmentInfo.upper_bound(offset);
   if (segIter == segmentInfo.begin())
   {
     [NSException raise:@"fileOffsetToRVA"
-                format:@"no segment found at offset 0x%X", offset];
+                format:@"no segment found at offset 0x%llX", offset];
   }
   --segIter;
-  uint32_t segOffset = segIter->first;
-  uint32_t segAddr = segIter->second.first;
-  return offset - segOffset + segAddr;
+  uint32_t segOffset = (uint32_t)segIter->first;
+  uint32_t segAddr = (uint32_t)segIter->second.first;
+  return (uint32_t)(offset - segOffset + segAddr);
 }
 
 //-----------------------------------------------------------------------------
-- (uint64_t)fileOffsetToRVA64: (uint32_t)offset
+- (uint64_t)fileOffsetToRVA64: (uint64_t)offset
 {
-  NSParameterAssert([self is64bit] == YES);
+  NSParameterAssert(self.is64bit == YES);
   
   SegmentInfoMap::const_iterator segIter = segmentInfo.upper_bound(offset);
   if (segIter == segmentInfo.begin())
   {
     [NSException raise:@"fileOffsetToRVA64"
-                format:@"no segment found at offset 0x%X", offset];
+                format:@"no segment found at offset 0x%llX", offset];
   }
   --segIter;
-  uint32_t segOffset = segIter->first;
+  uint64_t segOffset = segIter->first;
   uint64_t segAddr = segIter->second.first;
   return offset - segOffset + segAddr;
 }
 
 // ----------------------------------------------------------------------------
-- (uint32_t)RVAToFileOffset: (uint32_t)rva
+- (uint32_t)RVAToFileOffset: (uint64_t)rva
 {
-  NSParameterAssert([self is64bit] == NO);
+  NSParameterAssert(self.is64bit == NO);
+  NSParameterAssert(rva < UINT_MAX);
   
   SectionInfoMap::const_iterator sectIter = sectionInfo.upper_bound(rva);
   if (sectIter == sectionInfo.begin())
   {
     [NSException raise:@"RVAToFileOffset"
-                format:@"no section found at address 0x%X", rva];
+                format:@"no section found at address 0x%llX", rva];
   }
   --sectIter;
-  uint32_t sectOffset = sectIter->second.first;
-  uint32_t fileOffset = sectOffset + (rva - [self fileOffsetToRVA:sectOffset]);
-  NSAssert1(fileOffset < [dataController.fileData length], @"rva is out of range (0x%X)", rva);
+  uint32_t sectOffset = (uint32_t)sectIter->second.first;
+  uint32_t fileOffset = sectOffset + ((uint32_t)rva - [self fileOffsetToRVA:sectOffset]);
+  NSAssert1(fileOffset < [dataController.fileData length], @"rva is out of range (0x%llX)", rva);
   return fileOffset;
 }
 
 // ----------------------------------------------------------------------------
-- (uint32_t)RVA64ToFileOffset: (uint64_t)rva64
+- (uint64_t)RVA64ToFileOffset: (uint64_t)rva64
 {
-  NSParameterAssert([self is64bit] == YES);
+  NSParameterAssert(self.is64bit == YES);
   
   SectionInfoMap::const_iterator sectIter = sectionInfo.upper_bound(rva64);
   if (sectIter == sectionInfo.begin())
   {
     [NSException raise:@"RVA64ToFileOffset"
-                format:@"no section found at address 0x%qX", rva64];
+                format:@"no section found at address 0x%llX", rva64];
   }
   --sectIter;
-  uint32_t sectOffset = sectIter->second.first;
-  uint32_t fileOffset = sectOffset + (rva64 - [self fileOffsetToRVA64:sectOffset]);
-  NSAssert1(fileOffset < [dataController.fileData length], @"rva is out of range (0x%qX)", rva64);
+  uint64_t sectOffset = sectIter->second.first;
+  uint64_t fileOffset = sectOffset + (rva64 - [self fileOffsetToRVA64:sectOffset]);
+  NSAssert1(fileOffset < [dataController.fileData length], @"rva is out of range (0x%llX)", rva64);
   return fileOffset;
 }
 
 // ----------------------------------------------------------------------------
-- (void)addRelocAtFileOffset:(uint32_t)offset withLength:(uint32_t)length andValue:(uint64_t)value
+- (void)addRelocAtFileOffset:(uint64_t)offset withLength:(uint64_t)length andValue:(uint64_t)value
 {
   [dataController.realData replaceBytesInRange:NSMakeRange(offset,length) withBytes:&value];
 }
 
 // ----------------------------------------------------------------------------
-static inline
-uint32_t 
-_hex2int(char const * a, uint32_t len)
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winitializer-overrides"
+static const long hextable[] =
 {
-  uint32_t val = 0;
-  
-  for(uint32_t i = 0; i < len; i++)
-  {
-    if(a[i] <= '9')
-    {
-      val += (a[i]-'0')*(1<<(4*(len-1-i)));
-    }
-    else
-    {
-      val += (a[i]-'7')*(1<<(4*(len-1-i)));
-    }
+  [0 ... 255] = -1, // bit aligned access into this table is considerably
+  ['0'] = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, // faster for most modern processors,
+  ['A'] = 10, 11, 12, 13, 14, 15,       // for the space conscious, reduce to
+  ['a'] = 10, 11, 12, 13, 14, 15        // signed char.
+};
+#pragma clang diagnostic pop
+
+/**
+ * @brief convert a hexidecimal string to a signed long
+ * will not produce or process negative numbers except
+ * to signal error.
+ *
+ * @param hex without decoration, case insensitive.
+ *
+ * @return -1 on error, or result (max (sizeof(long)*8)-1 bits)
+ */
+static inline
+long hexdec(const char *hex) {
+  long ret = 0;
+  while (*hex && ret >= 0) {
+    ret = (ret << 4) | hextable[*hex++];
   }
-  
-  return val;
+  return ret;
 }
 
 // ----------------------------------------------------------------------------
 // RAW string to RVA string converter for data source
 - (NSString *)convertToRVA: (NSString *)offsetStr
 {
-  uint32_t fileOffset;
-  
-  /*
-  BOOL scanResult = [[NSScanner scannerWithString:offsetStr] scanHexInt:&fileOffset];
-  
-  // return empty string if it is out of bounds
-  if (scanResult == NO || segmentInfo.empty() || 
-      fileOffset < segmentInfo.begin()->first || 
-      fileOffset + 1 >= (--segmentInfo.end())->first + (--segmentInfo.end())->second.second)
-  {
-    return @"";
-  }
-  */
-  // _hex2int is supposed to be must faster
-  // note: on problems use the traditional scanner!
-  
-  fileOffset = _hex2int(CSTRING(offsetStr), offsetStr.length);
+  uint64_t fileOffset = hexdec(CSTRING(offsetStr));
+  NSParameterAssert((long)fileOffset != -1);
   
   if (segmentInfo.empty() || 
       fileOffset < segmentInfo.begin()->first || 
@@ -279,7 +269,7 @@ _hex2int(char const * a, uint32_t len)
     return @"";
   }
   
-  return ([self is64bit] == NO 
+  return (self.is64bit == NO 
           ? [NSString stringWithFormat:@"%.8X",[self fileOffsetToRVA:fileOffset]]
           : [NSString stringWithFormat:@"%.8qX",[self fileOffsetToRVA64:fileOffset]]);
 }
@@ -315,13 +305,14 @@ _hex2int(char const * a, uint32_t len)
 }
 
 //-----------------------------------------------------------------------------
-- (NSDictionary *)sectionInfoForRVA:(uint32_t)rva
+- (NSDictionary *)sectionInfoForRVA:(uint64_t)rva
 {
-  NSParameterAssert([self is64bit] == NO);
+  NSParameterAssert(self.is64bit == NO);
+  NSParameterAssert(rva < UINT_MAX);
   SectionInfoMap::iterator iter = sectionInfo.upper_bound(rva);
   if (iter == sectionInfo.begin())
   {
-    NSLog(@"warning: no section info found for address 0x%.8X",rva);
+    NSLog(@"warning: no section info found for address 0x%.8llX",rva);
     return nil;
   }
   return (--iter)->second.second;
@@ -330,7 +321,7 @@ _hex2int(char const * a, uint32_t len)
 //-----------------------------------------------------------------------------
 - (NSDictionary *)sectionInfoForRVA64:(uint64_t)rva64
 {
-  NSParameterAssert([self is64bit] == YES);
+  NSParameterAssert(self.is64bit == YES);
   SectionInfoMap::iterator iter = sectionInfo.upper_bound(rva64);
   if (iter == sectionInfo.begin())
   {
@@ -340,8 +331,10 @@ _hex2int(char const * a, uint32_t len)
   return (--iter)->second.second;
 }
 //-----------------------------------------------------------------------------
-- (NSString *)findSectionContainsRVA:(uint32_t)rva
+- (NSString *)findSectionContainsRVA:(uint64_t)rva
 {
+  NSParameterAssert(self.is64bit == NO);
+  NSParameterAssert(rva < UINT_MAX);
   NSDictionary * userInfo = [self sectionInfoForRVA:rva];
   return (userInfo ? [NSString stringWithFormat:@"%8s %-16s",
                       CSTRING(userInfo[@"segname"]),
@@ -351,6 +344,7 @@ _hex2int(char const * a, uint32_t len)
 //-----------------------------------------------------------------------------
 - (NSString *)findSectionContainsRVA64:(uint64_t)rva64
 {
+  NSParameterAssert(self.is64bit == YES);
   NSDictionary * userInfo = [self sectionInfoForRVA64:rva64];
   return (userInfo ? [NSString stringWithFormat:@"%8s %-16s",
                       CSTRING(userInfo[@"segname"]),
@@ -358,8 +352,10 @@ _hex2int(char const * a, uint32_t len)
 }
 
 //------------------------------------------------------------------------------
-- (MVNode *)sectionNodeContainsRVA:(uint32_t)rva
+- (MVNode *)sectionNodeContainsRVA:(uint64_t)rva
 {
+  NSParameterAssert(self.is64bit == NO);
+  NSParameterAssert(rva < UINT_MAX);
   NSDictionary * userInfo = [self sectionInfoForRVA:rva];
   return (userInfo ? [self findNodeByUserInfo:userInfo] : nil);
 }
@@ -367,6 +363,7 @@ _hex2int(char const * a, uint32_t len)
 //------------------------------------------------------------------------------
 - (MVNode *)sectionNodeContainsRVA64:(uint64_t)rva64
 {
+  NSParameterAssert(self.is64bit == YES);
   NSDictionary * userInfo = [self sectionInfoForRVA64:rva64];
   return (userInfo ? [self findNodeByUserInfo:userInfo] : nil);
 }
@@ -1073,7 +1070,7 @@ _hex2int(char const * a, uint32_t len)
                                       location:dyldInfoRange.location
                                         length:dyldInfoRange.length];
   
-  DyldHelper * dyldHelper = [DyldHelper dyldHelperWithSymbols:symbolNames is64Bit:[self is64bit]];
+  DyldHelper * dyldHelper = [DyldHelper dyldHelperWithSymbols:symbolNames is64Bit:self.is64bit];
   
   NSString * lastNodeCaption;
   @try 
@@ -1436,7 +1433,7 @@ struct CompareSectionByName
     
     @try
     {
-      uint32_t location = section->offset + imageOffset;
+      uint64_t location = section->offset + imageOffset;
       do
       {
         NSRange range = NSMakeRange(location,0);
@@ -1493,7 +1490,7 @@ struct CompareSectionByName
     
     @try
     {
-      uint32_t location = section_64->offset + imageOffset;
+      uint64_t location = section_64->offset + imageOffset;
       do
       {
         NSRange range = NSMakeRange(location,0);
@@ -1546,12 +1543,12 @@ struct CompareSectionByName
     {
       for (ExceptionFrameMap::iterator ehFrameIter = lsdaInfo.begin(); ehFrameIter != lsdaInfo.end();)
       {
-        uint32_t lsdaAddr = ehFrameIter->first;
-        uint32_t frameAddr = ehFrameIter->second;
+        uint64_t lsdaAddr = ehFrameIter->first;
+        uint64_t frameAddr = ehFrameIter->second;
         
-        uint32_t location = [self RVAToFileOffset:lsdaAddr];
+        uint64_t location = [self RVAToFileOffset:lsdaAddr];
         
-        uint32_t length = (++ehFrameIter != lsdaInfo.end() 
+        uint64_t length = (++ehFrameIter != lsdaInfo.end()
                            ? [self RVAToFileOffset:ehFrameIter->first]
                            : imageOffset + section->offset + section->size) - location;
         
@@ -1600,9 +1597,9 @@ struct CompareSectionByName
         uint64_t lsdaAddr = ehFrameIter->first;
         uint64_t frameAddr = ehFrameIter->second;
         
-        uint32_t location = [self RVA64ToFileOffset:lsdaAddr];
+        uint64_t location = [self RVA64ToFileOffset:lsdaAddr];
         
-        uint32_t length = (++ehFrameIter != lsdaInfo.end() 
+        uint64_t length = (++ehFrameIter != lsdaInfo.end()
                            ? [self RVA64ToFileOffset:ehFrameIter->first]
                            : section_64->offset + section_64->size) - location;
         
@@ -2075,7 +2072,7 @@ struct CompareSectionByName
 //-----------------------------------------------------------------------------
 - (MVNode *)createMachONode:(MVNode *)parent
                     caption:(NSString *)caption
-                   location:(uint32_t)location
+                   location:(uint64_t)location
                 mach_header:(struct mach_header const *)mach_header
 {
   MVNodeSaver nodeSaver;
@@ -2201,7 +2198,7 @@ struct CompareSectionByName
 
 - (MVNode *)createMachO64Node:(MVNode *)parent
                       caption:(NSString *)caption
-                     location:(uint32_t)location
+                     location:(uint64_t)location
                mach_header_64:(struct mach_header_64 const *)mach_header_64
 {
   MVNodeSaver nodeSaver;
@@ -2329,7 +2326,7 @@ struct CompareSectionByName
   NSString * lastNodeCaption; // for error message
   
   // ============== Mach Header ===========
-  if ([self is64bit] == NO)
+  if (self.is64bit == NO)
   {
     MATCH_STRUCT(mach_header,imageOffset)
     ncmds = mach_header->ncmds;
@@ -2369,7 +2366,7 @@ struct CompareSectionByName
   
   //=========== Load Commands =============
   {
-    uint32_t fileOffset = imageOffset + ([self is64bit] == NO 
+    uint64_t fileOffset = imageOffset + (self.is64bit == NO
                                          ? sizeof(struct mach_header) 
                                          : sizeof(struct mach_header_64));
     
@@ -2406,7 +2403,7 @@ struct CompareSectionByName
   //=========================== Sections =========================
   NSRange relocsRange = NSMakeRange(0,0);
   
-  if ([self is64bit] == NO)
+  if (self.is64bit == NO)
   {
     for (SectionVector::const_iterator sectIter = ++sections.begin(); sectIter != sections.end(); ++sectIter)
     {
@@ -2491,26 +2488,26 @@ struct CompareSectionByName
 {
   NSBlockOperation * linkEditOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
-      if ([self is64bit] == NO) [self processLinkEdit]; else [self processLinkEdit64];
+      if (self.is64bit == NO) [self processLinkEdit]; else [self processLinkEdit64];
     }
     NSLog(@"%@: LinkEdit finished parsing. (%lu symbols found)", self, 
-    [self is64bit] == NO ? symbols.size() : symbols_64.size());
+    self.is64bit == NO ? self->symbols.size() : self->symbols_64.size());
   }];
   
   NSBlockOperation * sectionRelocsOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
-      if ([self is64bit] == NO) [self processSectionRelocs]; else [self processSectionRelocs64];
+      if (self.is64bit == NO) [self processSectionRelocs]; else [self processSectionRelocs64];
     }
     NSLog(@"%@: Section relocations finished parsing.", self);
   }];
   
   NSBlockOperation * dyldInfoOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
       [self processDyldInfo];
     }
@@ -2519,45 +2516,45 @@ struct CompareSectionByName
   
   NSBlockOperation * sectionOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
-      if ([self is64bit] == NO) [self processSections]; else [self processSections64];
+      if (self.is64bit == NO) [self processSections]; else [self processSections64];
     }
     NSLog(@"%@: Section contents finished parsing.", self);
   }];
   
   NSBlockOperation * EHFramesOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
-      if ([self is64bit] == NO) [self processEHFrames]; else [self processEHFrames64];
+      if (self.is64bit == NO) [self processEHFrames]; else [self processEHFrames64];
     }
     NSLog(@"%@: Exception Frames finished parsing.", self);
   }];
   
   NSBlockOperation * LSDAsOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
-      if ([self is64bit] == NO) [self processLSDA]; else [self processLSDA64];
+      if (self.is64bit == NO) [self processLSDA]; else [self processLSDA64];
     }
-    NSLog(@"%@: Lang Spec Data Areas finished parsing. (%lu LSDAs found)", self, lsdaInfo.size());
+    NSLog(@"%@: Lang Spec Data Areas finished parsing. (%lu LSDAs found)", self, self->lsdaInfo.size());
   }];
   
   NSBlockOperation * objcSectionOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
-      if ([self is64bit] == NO) [self processObjcSections]; else [self processObjcSections64];
+      if (self.is64bit == NO) [self processObjcSections]; else [self processObjcSections64];
     }
     NSLog(@"%@: ObjC Section contents finished parsing.", self);
   }];
 
   NSBlockOperation * codeSectionsOperation = [NSBlockOperation blockOperationWithBlock:^
   {
-    if (backgroundThread.cancelled) return;
+    if (self->backgroundThread.cancelled) return;
     @autoreleasepool {
-      if ([self is64bit] == NO) [self processCodeSections]; else [self processCodeSections64];
+      if (self.is64bit == NO) [self processCodeSections]; else [self processCodeSections64];
     }
     NSLog(@"%@: Code sections finished parsing.", self);
   }];

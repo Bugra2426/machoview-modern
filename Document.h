@@ -26,7 +26,6 @@
 }
 @end
 
-
 @interface MVDocument : NSDocument
 {
   IBOutlet MVOutlineView *        leftView;

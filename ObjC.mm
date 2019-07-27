@@ -337,17 +337,17 @@ struct message_ref64
 
 - (MVNode *)createObjCProtocolListNode:(MVNode *)parent
                                caption:(NSString *)caption
-                              location:(uint32_t)location
+                              location:(uint64_t)location
                              protocols:(struct objc_protocol_list_t const *)objc_protocol_list_t;
 
 - (MVNode *)createObjC2ProtocolListNode:(MVNode *)parent
                                 caption:(NSString *)caption
-                               location:(uint32_t)location
+                               location:(uint64_t)location
                               protocols:(struct protocol_list_t const *)protocol_list_t;
 
 - (MVNode *)createObjC2Protocol64ListNode:(MVNode *)parent
                                   caption:(NSString *)caption
-                                 location:(uint32_t)location
+                                 location:(uint64_t)location
                                 protocols:(struct protocol64_list_t const *)protocol64_list_t;
 
 @end
@@ -368,7 +368,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 // returns YES if has already been processed
 //------------------------------------------------------------------------------
-- (MVNode *)entryInSectionNode:(MVNode *)node atLocation:(uint32_t)location
+- (MVNode *)entryInSectionNode:(MVNode *)node atLocation:(uint64_t)location
 {
   NSUInteger childCount = [node numberOfChildren];
   
@@ -387,8 +387,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCCFStringsNode:(MVNode *)parent
                             caption:(NSString *)caption
-                           location:(uint32_t)location
-                             length:(uint32_t)length
+                           location:(uint64_t)location
+                             length:(uint64_t)length
 {
   struct cfstring_t
   {
@@ -446,8 +446,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCCFStrings64Node:(MVNode *)parent
                               caption:(NSString *)caption
-                             location:(uint32_t)location
-                               length:(uint32_t)length
+                             location:(uint64_t)location
+                               length:(uint64_t)length
 {
   struct cfstring64_t
   {
@@ -505,8 +505,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCImageInfoNode:(MVNode *)parent
                             caption:(NSString *)caption
-                           location:(uint32_t)location
-                             length:(uint32_t)length
+                           location:(uint64_t)location
+                             length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
@@ -538,7 +538,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCVariablesNode:(MVNode *)parent
                             caption:(NSString *)caption
-                           location:(uint32_t)location
+                           location:(uint64_t)location
                               ivars:(struct objc_ivar_list_t const *)objc_ivar_list_t
 {
   // check for parent
@@ -609,7 +609,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCMethodsNode:(MVNode *)parent
                           caption:(NSString *)caption
-                         location:(uint32_t)location
+                         location:(uint64_t)location
                           methods:(struct objc_method_list_t const *)objc_method_list_t
 {
   // check for parent
@@ -687,7 +687,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCMethodDescrsNode:(MVNode *)parent
                                caption:(NSString *)caption
-                              location:(uint32_t)location
+                              location:(uint64_t)location
                              methodDescrs:(struct objc_method_description_list_t const *)objc_method_description_list_t
 {
   // check for parent
@@ -750,7 +750,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCProtocolNode:(MVNode *)parent
                            caption:(NSString *)caption
-                          location:(uint32_t)location
+                          location:(uint64_t)location
                           protocol:(struct objc_protocol_t const *)objc_protocol_t
 {
   // check for parent
@@ -849,7 +849,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCProtocolListNode:(MVNode *)parent
                                caption:(NSString *)caption
-                              location:(uint32_t)location
+                              location:(uint64_t)location
                              protocols:(struct objc_protocol_list_t const *)objc_protocol_list_t
 {
   // check for parent
@@ -931,7 +931,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCClassNode:(MVNode *)parent
                         caption:(NSString *)caption
-                       location:(uint32_t)location
+                       location:(uint64_t)location
                       objcClass:(struct objc_class_t const *)objc_class_t
 {
   // check for parent
@@ -1093,7 +1093,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCCategoryNode:(MVNode *)parent
                            caption:(NSString *)caption
-                          location:(uint32_t)location
+                          location:(uint64_t)location
                       objcCategory:(struct objc_category_t const *)objc_category_t
 {
   // check for parent
@@ -1199,7 +1199,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCSymtabNode:(MVNode *)parent
                          caption:(NSString *)caption
-                        location:(uint32_t)location
+                        location:(uint64_t)location
                       objcSymtab:(struct objc_symtab_t const *)objc_symtab_t
 {
   // check for parent
@@ -1291,8 +1291,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCModulesNode:(MVNode *)parent
                           caption:(NSString *)caption
-                         location:(uint32_t)location
-                           length:(uint32_t)length
+                         location:(uint64_t)location
+                           length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
@@ -1356,8 +1356,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCClassExtNode:(MVNode *)parent
                            caption:(NSString *)caption
-                          location:(uint32_t)location
-                            length:(uint32_t)length
+                          location:(uint64_t)location
+                            length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
@@ -1408,8 +1408,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjCProtocolExtNode:(MVNode *)parent
                               caption:(NSString *)caption
-                             location:(uint32_t)location
-                               length:(uint32_t)length
+                             location:(uint64_t)location
+                               length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
@@ -1466,8 +1466,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2PointerListNode:(MVNode *)parent
                                caption:(NSString *)caption
-                              location:(uint32_t)location
-                                length:(uint32_t)length
+                              location:(uint64_t)location
+                                length:(uint64_t)length
                               pointers:(PointerVector &)pointers
 {
   MVNodeSaver nodeSaver;
@@ -1498,8 +1498,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Pointer64ListNode:(MVNode *)parent
                                  caption:(NSString *)caption
-                                location:(uint32_t)location
-                                  length:(uint32_t)length
+                                location:(uint64_t)location
+                                  length:(uint64_t)length
                                 pointers:(Pointer64Vector &)pointers
 {
   MVNodeSaver nodeSaver;
@@ -1530,8 +1530,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2MsgRefsNode:(MVNode *)parent
                            caption:(NSString *)caption
-                          location:(uint32_t)location
-                            length:(uint32_t)length
+                          location:(uint64_t)location
+                            length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
@@ -1569,8 +1569,8 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2MsgRefs64Node:(MVNode *)parent
                              caption:(NSString *)caption
-                            location:(uint32_t)location
-                              length:(uint32_t)length
+                            location:(uint64_t)location
+                              length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
@@ -1608,7 +1608,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2MethodListNode:(MVNode *)parent
                               caption:(NSString *)caption
-                             location:(uint32_t)location
+                             location:(uint64_t)location
                               methods:(struct method_list_t const *)method_list_t
 {  
   // check for parent
@@ -1686,7 +1686,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Method64ListNode:(MVNode *)parent
                                 caption:(NSString *)caption
-                               location:(uint32_t)location
+                               location:(uint64_t)location
                                 methods:(struct method64_list_t const *)method64_list_t
 {  
   // check for parent
@@ -1764,7 +1764,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2PropertyListNode:(MVNode *)parent
                                 caption:(NSString *)caption
-                               location:(uint32_t)location
+                               location:(uint64_t)location
                              properties:(struct objc_property_list const *)objc_property_list
 {  
   // check for parent
@@ -1836,7 +1836,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Property64ListNode:(MVNode *)parent
                                   caption:(NSString *)caption
-                                 location:(uint32_t)location
+                                 location:(uint64_t)location
                                properties:(struct objc_property64_list const *)objc_property64_list
 {  
   // check for parent
@@ -1908,7 +1908,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2ProtocolNode:(MVNode *)parent
                             caption:(NSString *)caption
-                           location:(uint32_t)location
+                           location:(uint64_t)location
                            protocol:(struct protocol_t const *)protocol_t
 {  
   // check for parent
@@ -2061,7 +2061,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Protocol64Node:(MVNode *)parent
                               caption:(NSString *)caption
-                             location:(uint32_t)location
+                             location:(uint64_t)location
                              protocol:(struct protocol64_t const *)protocol64_t
 {  
   // check for parent
@@ -2139,7 +2139,7 @@ struct message_ref64
   // Protocols
   if (protocol64_t->protocols && (childNode = [self sectionNodeContainsRVA64:protocol64_t->protocols]))
   {
-    uint32_t location = [self RVA64ToFileOffset:protocol64_t->protocols];
+    uint64_t location = [self RVA64ToFileOffset:protocol64_t->protocols];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->protocols];
     MATCH_STRUCT(protocol64_list_t,location)
     [self createObjC2Protocol64ListNode:childNode
@@ -2151,7 +2151,7 @@ struct message_ref64
   // Instance Methods
   if (protocol64_t->instanceMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->instanceMethods]))
   {
-    uint32_t location = [self RVA64ToFileOffset:protocol64_t->instanceMethods];
+    uint64_t location = [self RVA64ToFileOffset:protocol64_t->instanceMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->instanceMethods];
     MATCH_STRUCT(method64_list_t,location)
     [self createObjC2Method64ListNode:childNode
@@ -2163,7 +2163,7 @@ struct message_ref64
   // Class Methods
   if (protocol64_t->classMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->classMethods]))
   {
-    uint32_t location = [self RVA64ToFileOffset:protocol64_t->classMethods];
+    uint64_t location = [self RVA64ToFileOffset:protocol64_t->classMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->classMethods];
     MATCH_STRUCT(method64_list_t,location)
     [self createObjC2Method64ListNode:childNode
@@ -2175,7 +2175,7 @@ struct message_ref64
   // Optional Instance Methods
   if (protocol64_t->optionalInstanceMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->optionalInstanceMethods]))
   {
-    uint32_t location = [self RVA64ToFileOffset:protocol64_t->optionalInstanceMethods];
+    uint64_t location = [self RVA64ToFileOffset:protocol64_t->optionalInstanceMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->optionalInstanceMethods];
     MATCH_STRUCT(method64_list_t,location)
     [self createObjC2Method64ListNode:childNode
@@ -2187,7 +2187,7 @@ struct message_ref64
   // Optional Class Methods
   if (protocol64_t->optionalClassMethods && (childNode = [self sectionNodeContainsRVA64:protocol64_t->optionalClassMethods]))
   {
-    uint32_t location = [self RVA64ToFileOffset:protocol64_t->optionalClassMethods];
+    uint64_t location = [self RVA64ToFileOffset:protocol64_t->optionalClassMethods];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->optionalClassMethods];
     MATCH_STRUCT(method64_list_t,location)
     [self createObjC2Method64ListNode:childNode
@@ -2199,7 +2199,7 @@ struct message_ref64
   // Instance Properties
   if (protocol64_t->instanceProperties && (childNode = [self sectionNodeContainsRVA64:protocol64_t->instanceProperties]))
   {
-    uint32_t location = [self RVA64ToFileOffset:protocol64_t->instanceProperties];
+    uint64_t location = [self RVA64ToFileOffset:protocol64_t->instanceProperties];
     NSString * caption = [self findSymbolAtRVA64:protocol64_t->instanceProperties];
     MATCH_STRUCT(objc_property64_list,location)
     [self createObjC2Property64ListNode:childNode
@@ -2214,7 +2214,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2ProtocolListNode:(MVNode *)parent
                                 caption:(NSString *)caption
-                               location:(uint32_t)location
+                               location:(uint64_t)location
                               protocols:(struct protocol_list_t const *)protocol_list_t
 {  
   // check for parent
@@ -2275,7 +2275,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Protocol64ListNode:(MVNode *)parent
                                   caption:(NSString *)caption
-                                 location:(uint32_t)location
+                                 location:(uint64_t)location
                                 protocols:(struct protocol64_list_t const *)protocol64_list_t
 {  
   // check for parent
@@ -2320,7 +2320,7 @@ struct message_ref64
     MVNode * childNode = [self sectionNodeContainsRVA64:protocolAddr];
     if (childNode)
     {
-      uint32_t location = [self RVA64ToFileOffset:protocolAddr];
+      uint64_t location = [self RVA64ToFileOffset:protocolAddr];
       NSString * caption = [self findSymbolAtRVA64:protocolAddr];
       MATCH_STRUCT(protocol64_t,location)
       [self createObjC2Protocol64Node:childNode
@@ -2336,7 +2336,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2VariableListNode:(MVNode *)parent
                                 caption:(NSString *)caption
-                               location:(uint32_t)location
+                               location:(uint64_t)location
                               variables:(struct ivar_list_t const *)ivar_list_t
 {  
   // check for parent
@@ -2426,7 +2426,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Variable64ListNode:(MVNode *)parent
                                   caption:(NSString *)caption
-                                 location:(uint32_t)location
+                                 location:(uint64_t)location
                                 variables:(struct ivar64_list_t const *)ivar64_list_t
 {  
   // check for parent
@@ -2516,7 +2516,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2ClassRONode:(MVNode *)parent
                            caption:(NSString *)caption
-                          location:(uint32_t)location
+                          location:(uint64_t)location
                            classRO:(struct class_ro_t const *)class_ro_t
 {  
   // check for parent
@@ -2661,7 +2661,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Class64RONode:(MVNode *)parent
                              caption:(NSString *)caption
-                            location:(uint32_t)location
+                            location:(uint64_t)location
                              classRO:(struct class64_ro_t const *)class64_ro_t
 {  
   // check for parent
@@ -2761,7 +2761,7 @@ struct message_ref64
   // Base Methods
   if (class64_ro_t->baseMethods && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->baseMethods]))
   {
-    uint32_t location = [self RVA64ToFileOffset:class64_ro_t->baseMethods];
+    uint64_t location = [self RVA64ToFileOffset:class64_ro_t->baseMethods];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->baseMethods];
     MATCH_STRUCT(method64_list_t,location)
     [self createObjC2Method64ListNode:childNode
@@ -2773,7 +2773,7 @@ struct message_ref64
   // Base Protocols
   if (class64_ro_t->baseProtocols && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->baseProtocols]))
   {
-    uint32_t location = [self RVA64ToFileOffset:class64_ro_t->baseProtocols];
+    uint64_t location = [self RVA64ToFileOffset:class64_ro_t->baseProtocols];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->baseProtocols];
     MATCH_STRUCT(protocol64_list_t,location)
     [self createObjC2Protocol64ListNode:childNode
@@ -2785,7 +2785,7 @@ struct message_ref64
   // Instance Variables
   if (class64_ro_t->ivars && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->ivars]))
   {
-    uint32_t location = [self RVA64ToFileOffset:class64_ro_t->ivars];
+    uint64_t location = [self RVA64ToFileOffset:class64_ro_t->ivars];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->ivars];
     MATCH_STRUCT(ivar64_list_t,location)
     [self createObjC2Variable64ListNode:childNode
@@ -2797,7 +2797,7 @@ struct message_ref64
   // Base Properties
   if (class64_ro_t->baseProperties && (childNode = [self sectionNodeContainsRVA64:class64_ro_t->baseProperties]))
   {
-    uint32_t location = [self RVA64ToFileOffset:class64_ro_t->baseProperties];
+    uint64_t location = [self RVA64ToFileOffset:class64_ro_t->baseProperties];
     NSString * caption = [self findSymbolAtRVA64:class64_ro_t->baseProperties];
     MATCH_STRUCT(objc_property64_list,location)
     [self createObjC2Property64ListNode:childNode
@@ -2812,7 +2812,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2ClassNode:(MVNode *)parent
                          caption:(NSString *)caption
-                        location:(uint32_t)location
+                        location:(uint64_t)location
                            class:(struct class_t const *)class_t
 {  
   // check for parent
@@ -2887,7 +2887,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Class64Node:(MVNode *)parent
                            caption:(NSString *)caption
-                          location:(uint32_t)location
+                          location:(uint64_t)location
                              class:(struct class64_t const *)class64_t
 {  
   // check for parent
@@ -2947,7 +2947,7 @@ struct message_ref64
   // readonly data
   if (class64_t->data && (childNode = [self sectionNodeContainsRVA64:class64_t->data]))
   {
-    uint32_t location = [self RVA64ToFileOffset:class64_t->data];
+    uint64_t location = [self RVA64ToFileOffset:class64_t->data];
     NSString * caption = [self findSymbolAtRVA64:class64_t->data];
     MATCH_STRUCT(class64_ro_t,location)
     [self createObjC2Class64RONode:childNode
@@ -2962,7 +2962,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2CategoryNode:(MVNode *)parent
                             caption:(NSString *)caption
-                           location:(uint32_t)location
+                           location:(uint64_t)location
                            category:(struct category_t const *)category_t
 {  
   // check for parent
@@ -3091,7 +3091,7 @@ struct message_ref64
 //------------------------------------------------------------------------------
 - (MVNode *)createObjC2Category64Node:(MVNode *)parent
                               caption:(NSString *)caption
-                             location:(uint32_t)location
+                             location:(uint64_t)location
                              category:(struct category64_t const *)category64_t
 {  
   // check for parent
@@ -3157,7 +3157,7 @@ struct message_ref64
   // CLS
   if (category64_t->cls && (childNode = [self sectionNodeContainsRVA64:category64_t->cls]))
   {
-    uint32_t location = [self RVA64ToFileOffset:category64_t->cls];
+    uint64_t location = [self RVA64ToFileOffset:category64_t->cls];
     NSString * caption = [self findSymbolAtRVA64:category64_t->cls];
     MATCH_STRUCT(class64_t,location)
     [self createObjC2Class64Node:childNode
@@ -3169,7 +3169,7 @@ struct message_ref64
   // Instance Methods
   if (category64_t->instanceMethods && (childNode = [self sectionNodeContainsRVA64:category64_t->instanceMethods]))
   {
-    uint32_t location = [self RVA64ToFileOffset:category64_t->instanceMethods];
+    uint64_t location = [self RVA64ToFileOffset:category64_t->instanceMethods];
     NSString * caption = [self findSymbolAtRVA64:category64_t->instanceMethods];
     MATCH_STRUCT(method64_list_t,location)
     [self createObjC2Method64ListNode:childNode
@@ -3181,7 +3181,7 @@ struct message_ref64
   // Class Methods
   if (category64_t->classMethods && (childNode = [self sectionNodeContainsRVA64:category64_t->classMethods]))
   {
-    uint32_t location = [self RVA64ToFileOffset:category64_t->classMethods];
+    uint64_t location = [self RVA64ToFileOffset:category64_t->classMethods];
     NSString * caption = [self findSymbolAtRVA64:category64_t->classMethods];
     MATCH_STRUCT(method64_list_t,location)
     [self createObjC2Method64ListNode:childNode
@@ -3193,7 +3193,7 @@ struct message_ref64
   // Protocols
   if (category64_t->protocols && (childNode = [self sectionNodeContainsRVA64:category64_t->protocols]))
   {
-    uint32_t location = [self RVA64ToFileOffset:category64_t->protocols];
+    uint64_t location = [self RVA64ToFileOffset:category64_t->protocols];
     NSString * caption = [self findSymbolAtRVA64:category64_t->protocols];
     MATCH_STRUCT(protocol64_list_t,location)
     [self createObjC2Protocol64ListNode:childNode
@@ -3205,7 +3205,7 @@ struct message_ref64
   // Instance Properties
   if (category64_t->instanceProperties && (childNode = [self sectionNodeContainsRVA64:category64_t->instanceProperties]))
   {
-    uint32_t location = [self RVA64ToFileOffset:category64_t->instanceProperties];
+    uint64_t location = [self RVA64ToFileOffset:category64_t->instanceProperties];
     NSString * caption = [self findSymbolAtRVA64:category64_t->instanceProperties];
     MATCH_STRUCT(objc_property64_list,location)
     [self createObjC2Property64ListNode:childNode
@@ -3283,7 +3283,7 @@ struct message_ref64
     uint64_t const & rva64 = *iter;
     if (rva64 && (node = [self sectionNodeContainsRVA64:rva64]))
     {
-      uint32_t location = [self RVA64ToFileOffset:rva64];   
+      uint64_t location = [self RVA64ToFileOffset:rva64];
       NSString * caption = [self findSymbolAtRVA64:rva64];
       MATCH_STRUCT(class64_t,location)
       [self createObjC2Class64Node:node
@@ -3298,7 +3298,7 @@ struct message_ref64
     uint64_t const & rva64 = *iter;
     if (rva64 && (node = [self sectionNodeContainsRVA64:rva64]))
     {
-      uint32_t location = [self RVA64ToFileOffset:rva64]; 
+      uint64_t location = [self RVA64ToFileOffset:rva64];
       NSString * caption = [self findSymbolAtRVA64:rva64];
       MATCH_STRUCT(category64_t,location)
       [self createObjC2Category64Node:node
@@ -3313,7 +3313,7 @@ struct message_ref64
     uint64_t const & rva64 = *iter;
     if (rva64 && (node = [self sectionNodeContainsRVA64:rva64]))
     {
-      uint32_t location = [self RVA64ToFileOffset:rva64];  
+      uint64_t location = [self RVA64ToFileOffset:rva64];
       NSString * caption = [self findSymbolAtRVA64:rva64];
       MATCH_STRUCT(protocol64_t,location)
       [self createObjC2Protocol64Node:node

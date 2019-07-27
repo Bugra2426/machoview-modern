@@ -174,7 +174,7 @@ int64_t nrow_loaded; // number of loaded rows
   [openPanel beginSheetModalForWindow:NSApp.modalWindow
                     completionHandler:^(NSInteger result)
                     {
-                      if (result != NSFileHandlingPanelOKButton)
+                      if (result != NSModalResponseOK)
                       {
                         return;
                       }

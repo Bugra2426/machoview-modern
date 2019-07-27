@@ -63,16 +63,16 @@ using namespace std;
 - (void)rebaseAddress:(uint64_t)address 
                  type:(uint32_t)type 
                  node:(MVNode *)node
-             location:(uint32_t)location
+             location:(uint64_t)location
 {
-  NSString * descStr = [NSString stringWithFormat:@"%@ 0x%qX %@",
-                        [self is64bit] == NO ? [self findSectionContainsRVA:address] : [self findSectionContainsRVA64:address],
+  NSString * descStr = [NSString stringWithFormat:@"%@ 0x%llX %@",
+                        self.is64bit == NO ? [self findSectionContainsRVA:(uint32_t)address] : [self findSectionContainsRVA64:address],
                         address,
                         type == REBASE_TYPE_POINTER ? @"Pointer" :
                         type == REBASE_TYPE_TEXT_ABSOLUTE32 ? @"Abs32  " :
                         type == REBASE_TYPE_TEXT_PCREL32 ? @"PCrel32" : @"???"];
   
-  [node.details appendRow:[NSString stringWithFormat:@"%.8X", location]
+  [node.details appendRow:[NSString stringWithFormat:@"%.8llX", location]
                          :@""
                          :descStr
                          :@""];
@@ -81,8 +81,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createRebaseNode:(MVNode *)parent
                      caption:(NSString *)caption
-                    location:(uint32_t)location
-                      length:(uint32_t)length
+                    location:(uint64_t)location
+                      length:(uint64_t)length
                  baseAddress:(uint64_t)baseAddress
 {
   MVNode * dataNode = [self createDataNode:parent 
@@ -101,11 +101,11 @@ using namespace std;
 
   BOOL isDone = NO;
   
-  uint64_t ptrSize = ([self is64bit] == NO ? sizeof(uint32_t) : sizeof(uint64_t));
+  uint64_t ptrSize = (self.is64bit == NO ? sizeof(uint32_t) : sizeof(uint64_t));
   uint64_t address = baseAddress;
   uint32_t type = 0;
   
-  uint32_t doRebaseLocation = location;
+  uint64_t doRebaseLocation = location;
   
   while (NSMaxRange(range) < location + length && isDone == NO)
   {
@@ -165,14 +165,14 @@ using namespace std;
                                :@"uleb128"
                                :[NSString stringWithFormat:@"offset (%qi)",offset]];
         
-        if (([self is64bit] == NO && segmentIndex >= segments.size()) || 
-            ([self is64bit] == YES && segmentIndex >= segments_64.size())) 
+        if ((self.is64bit == NO && segmentIndex >= segments.size()) || 
+            (self.is64bit == YES && segmentIndex >= segments_64.size())) 
         {
           [NSException raise:@"Segment"
                       format:@"index is out of range %u", segmentIndex];
         }
         
-        address = ([self is64bit] == NO ? segments.at(segmentIndex)->vmaddr 
+        address = (self.is64bit == NO ? segments.at(segmentIndex)->vmaddr 
                                         : segments_64.at(segmentIndex)->vmaddr) + offset;
       } break;
         
@@ -233,7 +233,7 @@ using namespace std;
                                :@"REBASE_OPCODE_DO_REBASE_ULEB_TIMES"
                                :@""];
         
-        uint32_t startNextRebase = NSMaxRange(range);
+        uint64_t startNextRebase = NSMaxRange(range);
         
         uint64_t count = [dataController read_uleb128:range lastReadHex:&lastReadHex];
         [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -260,7 +260,7 @@ using namespace std;
                                :@"REBASE_OPCODE_DO_REBASE_ADD_ADDR_ULEB"
                                :@""];
         
-        uint32_t startNextRebase = NSMaxRange(range);
+        uint64_t startNextRebase = NSMaxRange(range);
         
         uint64_t offset = [dataController read_uleb128:range lastReadHex:&lastReadHex];
         [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -284,7 +284,7 @@ using namespace std;
                                :@"REBASE_OPCODE_DO_REBASE_ULEB_TIMES_SKIPPING_ULEB"
                                :@""];
         
-        uint32_t startNextRebase = NSMaxRange(range);
+        uint64_t startNextRebase = NSMaxRange(range);
         
         uint64_t count = [dataController read_uleb128:range lastReadHex:&lastReadHex];
         [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -335,12 +335,12 @@ using namespace std;
      libraryOrdinal:(int32_t)libOrdinal
                node:(MVNode *)node
            nodeType:(BindNodeType)nodeType
-           location:(uint32_t)location
+           location:(uint64_t)location
          dyldHelper:(DyldHelper *)helper
             ptrSize:(uint32_t)ptrSize
 {
-  NSString * descStr = [NSString stringWithFormat:@"%@ 0x%qX", 
-                        [self is64bit] == NO ? [self findSectionContainsRVA:address] : [self findSectionContainsRVA64:address],
+  NSString * descStr = [NSString stringWithFormat:@"%@ 0x%llX", 
+                        self.is64bit == NO ? [self findSectionContainsRVA:(uint32_t)address] : [self findSectionContainsRVA64:address],
                         address];
   
   if (nodeType != NodeTypeLazyBind)
@@ -373,7 +373,7 @@ using namespace std;
                  NSSTRING((uint8_t *)dylib + dylib->name.offset - sizeof(struct load_command)).lastPathComponent];
   }
   
-  [node.details appendRow:[NSString stringWithFormat:@"%.8X", location]
+  [node.details appendRow:[NSString stringWithFormat:@"%.8llX", location]
                          :@""
                          :descStr
                          :symbolName];
@@ -387,9 +387,9 @@ using namespace std;
     NSNumber * symbolIndex = [helper indexForSymbol:symbolName];
     if (symbolIndex != nil)
     {
-      uint32_t relocLocation;
+      uint64_t relocLocation;
       uint64_t relocValue;
-      if ([self is64bit] == NO)
+      if (self.is64bit == NO)
       {
         relocLocation = [self RVAToFileOffset:(uint32_t)address];
         relocValue = symbolIndex.longValue;
@@ -406,7 +406,7 @@ using namespace std;
       
       /*
         NSLog(@"%0xqX --> %0xqX", 
-              ([self is64bit] == NO ? [self fileOffsetToRVA:relocLocation] : [self fileOffsetToRVA64:relocLocation]),
+              (self.is64bit == NO ? [self fileOffsetToRVA:relocLocation] : [self fileOffsetToRVA64:relocLocation]),
               relocValue);
        */
     }
@@ -416,8 +416,8 @@ using namespace std;
       
 - (MVNode *)createBindingNode:(MVNode *)parent
                       caption:(NSString *)caption
-                     location:(uint32_t)location
-                       length:(uint32_t)length
+                     location:(uint64_t)location
+                       length:(uint64_t)length
                   baseAddress:(uint64_t)baseAddress
                      nodeType:(BindNodeType)nodeType
                    dyldHelper:(DyldHelper *)helper
@@ -446,9 +446,9 @@ using namespace std;
   NSString * symbolName = nil;
   uint32_t symbolFlags = 0;
   
-  uint32_t doBindLocation = location;
+  uint64_t doBindLocation = location;
   
-  uint64_t ptrSize = ([self is64bit] == NO ? sizeof(uint32_t) : sizeof(uint64_t));
+  uint32_t ptrSize = (self.is64bit == NO ? sizeof(uint32_t) : sizeof(uint64_t));
   uint64_t address = baseAddress;
   
   while (NSMaxRange(range) < location + length && isDone == NO)
@@ -489,7 +489,7 @@ using namespace std;
                                :@"BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB"
                                :@""];
         
-        libOrdinal = [dataController read_uleb128:range lastReadHex:&lastReadHex];
+        libOrdinal = (uint32_t)[dataController read_uleb128:range lastReadHex:&lastReadHex];
         
         [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                                :lastReadHex
@@ -570,14 +570,14 @@ using namespace std;
                                :@"uleb128"
                                :[NSString stringWithFormat:@"offset (%qi)",val]];
         
-        if (([self is64bit] == NO && segmentIndex >= segments.size()) || 
-            ([self is64bit] == YES && segmentIndex >= segments_64.size())) 
+        if ((self.is64bit == NO && segmentIndex >= segments.size()) || 
+            (self.is64bit == YES && segmentIndex >= segments_64.size())) 
         {
           [NSException raise:@"Segment"
                       format:@"index is out of range %u", segmentIndex];
         }
         
-        address = ([self is64bit] == NO ? segments.at(segmentIndex)->vmaddr 
+        address = (self.is64bit == NO ? segments.at(segmentIndex)->vmaddr 
                                         : segments_64.at(segmentIndex)->vmaddr) + val;
       } break;
         
@@ -631,7 +631,7 @@ using namespace std;
                                :@"BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB"
                                :@""];
 
-        uint32_t startNextBind = NSMaxRange(range);
+        uint64_t startNextBind = NSMaxRange(range);
         
         uint64_t val = [dataController read_uleb128:range lastReadHex:&lastReadHex];
         [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -693,7 +693,7 @@ using namespace std;
                                :@"BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB"
                                :@""];
         
-        uint32_t startNextBind = NSMaxRange(range);
+        uint64_t startNextBind = NSMaxRange(range);
         
         uint64_t count = [dataController read_uleb128:range lastReadHex:&lastReadHex];
         [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -743,12 +743,12 @@ using namespace std;
           symbolName:(NSString *)symbolName
                flags:(uint64_t)flags 
                 node:(MVNode *)node
-            location:(uint32_t)location
+            location:(uint64_t)location
 {
-  //uint64_t address = [self is64bit] == NO ? [self fileOffsetToRVA:offset] : [self fileOffsetToRVA64:offset];
+  //uint64_t address = self.is64bit == NO ? [self fileOffsetToRVA:offset] : [self fileOffsetToRVA64:offset];
   
-  NSString * descStr = [NSString stringWithFormat:@"%@ 0x%qX",
-                        [self is64bit] == NO ? [self findSectionContainsRVA:address] : [self findSectionContainsRVA64:address],
+  NSString * descStr = [NSString stringWithFormat:@"%@ 0x%llX",
+                        self.is64bit == NO ? [self findSectionContainsRVA:(uint32_t)address] : [self findSectionContainsRVA64:address],
                         address];
   
   if ((flags & EXPORT_SYMBOL_FLAGS_KIND_MASK) == EXPORT_SYMBOL_FLAGS_KIND_THREAD_LOCAL)
@@ -772,7 +772,7 @@ using namespace std;
   }
   
   [node.details insertRowWithOffset:location
-                                   :[NSString stringWithFormat:@"%.8X", location]
+                                   :[NSString stringWithFormat:@"%.8llX", location]
                                    :@""
                                    :descStr
                                    :symbolName];
@@ -782,12 +782,12 @@ using namespace std;
 //-----------------------------------------------------------------------------
 
 - (void)printSymbols:(NSString *)prefix                    
-            location:(uint32_t)location
-           skipBytes:(uint32_t)skip
+            location:(uint64_t)location
+           skipBytes:(uint64_t)skip
                 node:(MVNode *)node
           actionNode:(MVNode *)actionNode
          baseAddress:(uint64_t)baseAddress
-      exportLocation:(uint32_t &)exportLocation
+      exportLocation:(uint64_t &)exportLocation
 {
   NSRange range = NSMakeRange(location + skip,0);
   NSString * lastReadHex;
@@ -801,7 +801,7 @@ using namespace std;
   
   if (terminalSize != 0) 
   {
-    uint32_t terminalLocation = NSMaxRange(range);
+    uint64_t terminalLocation = NSMaxRange(range);
     
     uint64_t flags = [dataController read_uleb128:range lastReadHex:&lastReadHex];
     [node.details insertRowWithOffset:range.location
@@ -821,7 +821,7 @@ using namespace std;
                                      :[NSString stringWithFormat:@"%.8lX", range.location]
                                      :lastReadHex
                                      :@"Symbol Offset"
-                                     :[NSString stringWithFormat:@"0x%qX",offset]];
+                                     :[NSString stringWithFormat:@"0x%llX",offset]];
     
     //=================================================================
     [self exportSymbol:baseAddress + offset
@@ -863,9 +863,9 @@ using namespace std;
                                      :[NSString stringWithFormat:@"%.8lX", range.location]
                                      :lastReadHex
                                      :@"Next Node"
-                                     :[self is64bit] == NO 
+                                     :self.is64bit == NO 
                                         ? [NSString stringWithFormat:@"0x%X",[self fileOffsetToRVA:location + skip]]
-                                        : [NSString stringWithFormat:@"0x%qX",[self fileOffsetToRVA64:location + skip]]];
+                                        : [NSString stringWithFormat:@"0x%llX",[self fileOffsetToRVA64:location + skip]]];
     
     if (childCount == 0)
     {
@@ -886,8 +886,8 @@ using namespace std;
 
 - (MVNode *)createExportNode:(MVNode *)parent
                      caption:(NSString *)caption
-                    location:(uint32_t)location
-                      length:(uint32_t)length
+                    location:(uint64_t)location
+                      length:(uint64_t)length
                  baseAddress:(uint64_t)baseAddress
 {
   MVNode * dataNode = [self createDataNode:parent 
@@ -901,7 +901,7 @@ using namespace std;
   MVNodeSaver actionNodeSaver;
   MVNode * actionNode = [dataNode insertChildWithDetails:@"Actions" location:location length:length saver:actionNodeSaver];
   
-  uint32_t exportLocation = location;
+  uint64_t exportLocation = location;
   
   // start to traverse with initial values
   [self printSymbols:@"" 

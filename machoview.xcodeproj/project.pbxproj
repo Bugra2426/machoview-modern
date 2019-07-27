@@ -78,7 +78,6 @@
 		3C0F958711F658BF0070A2FE /* greenApple.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = greenApple.icns; sourceTree = "<group>"; };
 		3C0F958811F658BF0070A2FE /* redApple.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = redApple.icns; sourceTree = "<group>"; };
 		3C1163F013D5B88D007B4A6E /* stop.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = stop.png; sourceTree = "<group>"; };
-		3C2CA5D6187895A000A6F321 /* reloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reloc.h; sourceTree = "<group>"; };
 		3C30845A11FDAF6F008A270F /* createdmg */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = createdmg; sourceTree = "<group>"; };
 		3C34A82914892FF1005B53F6 /* FatLayout.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FatLayout.h; sourceTree = "<group>"; };
 		3C34A82A14892FF1005B53F6 /* FatLayout.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FatLayout.mm; sourceTree = "<group>"; };
@@ -91,7 +90,6 @@
 		3C61A87D1240B0C100BDF3D0 /* SectionContents.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SectionContents.h; sourceTree = "<group>"; };
 		3C73525811DE122900DF1950 /* Document.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Document.h; sourceTree = "<group>"; };
 		3C73525911DE122900DF1950 /* Document.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Document.mm; sourceTree = "<group>"; };
-		3C85653C183943FF00645457 /* machine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = machine.h; path = mach/machine.h; sourceTree = "<group>"; };
 		3C871CB1141AC7C100288512 /* Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Common.h; sourceTree = "<group>"; };
 		3CA2331811F6445700684D15 /* MachOView.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MachOView.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3CB9D3F7139FC96D003D8D33 /* libdisasm.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libdisasm.a; sourceTree = "<group>"; };
@@ -101,15 +99,6 @@
 		3CCC228C129EE70C0083DAE2 /* CRTFootPrints.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = CRTFootPrints.mm; sourceTree = "<group>"; };
 		3CD037C01248F66300DCFC68 /* DyldInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DyldInfo.h; sourceTree = "<group>"; };
 		3CD037C11248F66C00DCFC68 /* DyldInfo.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = DyldInfo.mm; sourceTree = "<group>"; };
-		3CDFB35D139F603C00F46F18 /* arch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = arch.h; sourceTree = "<group>"; };
-		3CDFB35F139F603C00F46F18 /* reloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reloc.h; sourceTree = "<group>"; };
-		3CDFB361139F603C00F46F18 /* fat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fat.h; sourceTree = "<group>"; };
-		3CDFB362139F603C00F46F18 /* loader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = loader.h; sourceTree = "<group>"; };
-		3CDFB363139F603C00F46F18 /* nlist.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = nlist.h; sourceTree = "<group>"; };
-		3CDFB364139F603C00F46F18 /* ranlib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ranlib.h; sourceTree = "<group>"; };
-		3CDFB365139F603C00F46F18 /* reloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reloc.h; sourceTree = "<group>"; };
-		3CDFB366139F603C00F46F18 /* swap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = swap.h; sourceTree = "<group>"; };
-		3CDFB368139F603C00F46F18 /* reloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reloc.h; sourceTree = "<group>"; };
 		3CE6D8F41838028400938858 /* Attach.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Attach.h; sourceTree = "<group>"; };
 		3CE6D8F51838028400938858 /* Attach.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Attach.mm; sourceTree = "<group>"; };
 		3CE718B513338F030005C4DA /* ArchiveLayout.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ArchiveLayout.h; sourceTree = "<group>"; };
@@ -224,8 +213,6 @@
 			children = (
 				3CE90DFC11F6107600543402 /* README */,
 				3C30845A11FDAF6F008A270F /* createdmg */,
-				3C85653B183943F000645457 /* mach */,
-				3C78CB26139EE44B006C9591 /* mach-o */,
 				29B97315FDCFA39411CA2CEA /* main */,
 				080E96DDFE201D6D7F000001 /* machoview */,
 				29B97317FDCFA39411CA2CEA /* Resources */,
@@ -270,55 +257,6 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		3C2CA5D5187895A000A6F321 /* arm64 */ = {
-			isa = PBXGroup;
-			children = (
-				3C2CA5D6187895A000A6F321 /* reloc.h */,
-			);
-			path = arm64;
-			sourceTree = "<group>";
-		};
-		3C78CB26139EE44B006C9591 /* mach-o */ = {
-			isa = PBXGroup;
-			children = (
-				3CDFB35D139F603C00F46F18 /* arch.h */,
-				3CDFB365139F603C00F46F18 /* reloc.h */,
-				3CDFB35E139F603C00F46F18 /* arm */,
-				3C2CA5D5187895A000A6F321 /* arm64 */,
-				3CDFB367139F603C00F46F18 /* x86_64 */,
-				3CDFB361139F603C00F46F18 /* fat.h */,
-				3CDFB362139F603C00F46F18 /* loader.h */,
-				3CDFB363139F603C00F46F18 /* nlist.h */,
-				3CDFB364139F603C00F46F18 /* ranlib.h */,
-				3CDFB366139F603C00F46F18 /* swap.h */,
-			);
-			path = "mach-o";
-			sourceTree = "<group>";
-		};
-		3C85653B183943F000645457 /* mach */ = {
-			isa = PBXGroup;
-			children = (
-				3C85653C183943FF00645457 /* machine.h */,
-			);
-			name = mach;
-			sourceTree = "<group>";
-		};
-		3CDFB35E139F603C00F46F18 /* arm */ = {
-			isa = PBXGroup;
-			children = (
-				3CDFB35F139F603C00F46F18 /* reloc.h */,
-			);
-			path = arm;
-			sourceTree = "<group>";
-		};
-		3CDFB367139F603C00F46F18 /* x86_64 */ = {
-			isa = PBXGroup;
-			children = (
-				3CDFB368139F603C00F46F18 /* reloc.h */,
-			);
-			path = x86_64;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -349,7 +287,7 @@
 		29B97313FDCFA39411CA2CEA /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0900;
+				LastUpgradeCheck = 0930;
 			};
 			buildConfigurationList = C01FCF4E08A954540054247B /* Build configuration list for PBXProject "machoview" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -522,9 +460,16 @@
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
@@ -540,6 +485,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Prefix.pch;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
@@ -563,9 +509,16 @@
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
@@ -579,6 +532,7 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Prefix.pch;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
 				GCC_WARN_SIGN_COMPARE = YES;

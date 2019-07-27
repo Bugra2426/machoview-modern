@@ -24,8 +24,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createPointersNode:(MVNode *)parent
                        caption:(NSString *)caption
-                      location:(uint32_t)location
-                        length:(uint32_t)length
+                      location:(uint64_t)location
+                        length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -56,8 +56,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createPointers64Node:(MVNode *)parent
                          caption:(NSString *)caption
-                        location:(uint32_t)location
-                          length:(uint32_t)length
+                        location:(uint64_t)location
+                          length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -88,8 +88,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 -(MVNode *)createCStringsNode:(MVNode *)parent
                       caption:(NSString *)caption
-                     location:(uint32_t)location
-                       length:(uint32_t)length
+                     location:(uint64_t)location
+                       length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -109,7 +109,7 @@ using namespace std;
     [node.details setAttributes:MVMetaDataAttributeName,symbolName,nil];
     
     // fill in lookup table with C Strings
-    if ([self is64bit] == NO)
+    if (self.is64bit == NO)
     {
       uint32_t rva = [self fileOffsetToRVA:range.location];
       symbolNames[@(rva)] = [NSString stringWithFormat:@"0x%X:\"%@\"", rva, symbolName];
@@ -117,7 +117,7 @@ using namespace std;
     else
     {
       uint64_t rva64 = [self fileOffsetToRVA64:range.location];
-      symbolNames[@(rva64)] = [NSString stringWithFormat:@"0x%qX:\"%@\"", rva64, symbolName];
+      symbolNames[@(rva64)] = [NSString stringWithFormat:@"0x%llX:\"%@\"", rva64, symbolName];
     }
   }
   
@@ -127,8 +127,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 -(MVNode *)createLiteralsNode:(MVNode *)parent
                       caption:(NSString *)caption
-                     location:(uint32_t)location
-                       length:(uint32_t)length
+                     location:(uint64_t)location
+                       length:(uint64_t)length
                        stride:(uint32_t)stride
 {
   MVNodeSaver nodeSaver;
@@ -170,7 +170,7 @@ using namespace std;
                            :literalStr];
     
     // fill in lookup table with string literals
-    if ([self is64bit] == NO)
+    if (self.is64bit == NO)
     {
       uint32_t rva = [self fileOffsetToRVA:range.location];
       symbolNames[@(rva)] = [NSString stringWithFormat:@"0x%X:%@f", rva, literalStr]; 
@@ -178,7 +178,7 @@ using namespace std;
     else
     {
       uint64_t rva64 = [self fileOffsetToRVA64:range.location];
-      symbolNames[@(rva64)] = [NSString stringWithFormat:@"0x%qX:%@f", rva64, literalStr]; 
+      symbolNames[@(rva64)] = [NSString stringWithFormat:@"0x%llX:%@f", rva64, literalStr]; 
     }
   }
   return node;
@@ -188,8 +188,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createIndPointersNode:(MVNode *)parent
                           caption:(NSString *)caption
-                         location:(uint32_t)location
-                           length:(uint32_t)length
+                         location:(uint64_t)location
+                           length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -215,8 +215,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createIndPointers64Node:(MVNode *)parent
                             caption:(NSString *)caption
-                           location:(uint32_t)location
-                             length:(uint32_t)length
+                           location:(uint64_t)location
+                             length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -242,8 +242,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createIndStubsNode:(MVNode *)parent
                        caption:(NSString *)caption
-                      location:(uint32_t)location
-                        length:(uint32_t)length
+                      location:(uint64_t)location
+                        length:(uint64_t)length
                         stride:(uint32_t)stride
 {
   MVNodeSaver nodeSaver;
@@ -270,8 +270,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *)createIndStubs64Node:(MVNode *)parent
                          caption:(NSString *)caption
-                        location:(uint32_t)location
-                          length:(uint32_t)length
+                        location:(uint64_t)location
+                          length:(uint64_t)length
                           stride:(uint32_t)stride
 {
   MVNodeSaver nodeSaver;
@@ -422,8 +422,8 @@ static AsmFootPrint const fastStubHelperHelperARM =
 //-----------------------------------------------------------------------------
 - (MVNode *)createStubHelperNode:(MVNode *)parent
                          caption:(NSString *)caption
-                        location:(uint32_t)location
-                          length:(uint32_t)length
+                        location:(uint64_t)location
+                          length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -534,13 +534,13 @@ static AsmFootPrint const fastStubHelperHelperARM =
 //-----------------------------------------------------------------------------
 - (MVNode *)createTextNode:(MVNode *)parent
                    caption:(NSString *)caption
-                  location:(uint32_t)location
-                    length:(uint32_t)length
-                    reloff:(uint32_t)reloff
+                  location:(uint64_t)location
+                    length:(uint64_t)length
+                    reloff:(uint64_t)reloff
                     nreloc:(uint32_t)nreloc
-                 extreloff:(uint32_t)extreloff
+                 extreloff:(uint64_t)extreloff
                    nextrel:(uint32_t)nextrel
-                 locreloff:(uint32_t)locreloff
+                 locreloff:(uint64_t)locreloff
                    nlocrel:(uint32_t)nlocrel
 {
   MVNodeSaver nodeSaver;
@@ -560,20 +560,20 @@ static AsmFootPrint const fastStubHelperHelperARM =
   MATCH_STRUCT(mach_header,imageOffset);
   
   char *                      ot_sect = (char *)(dataController.fileData).bytes + location;
-  uint32_t                    ot_left = length;
-  uint64_t                    ot_addr = ([self is64bit] == NO ? [self fileOffsetToRVA:location] : [self fileOffsetToRVA64:location]);
+  uint32_t                    ot_left = (uint32_t)length;
+  uint64_t                    ot_addr = (self.is64bit == NO ? [self fileOffsetToRVA:location] : [self fileOffsetToRVA64:location]);
   uint64_t                    ot_sect_addr = ot_addr;
   uint64_t                    ot_seg_addr = ot_addr;
   enum byte_sex               ot_object_byte_sex = LITTLE_ENDIAN_BYTE_SEX; // the only one we support so far
   struct nlist *              ot_symbols = (symbols.empty() ? NULL : const_cast<struct nlist *>(symbols[0]));
   struct nlist_64 *           ot_symbols64 = (symbols_64.empty() ? NULL : const_cast<struct nlist_64 *>(symbols_64[0]));
-  uint32_t                    ot_nsymbols = ([self is64bit] == NO ? symbols.size() : symbols_64.size());
+  uint32_t                    ot_nsymbols = (uint32_t)(self.is64bit == NO ? symbols.size() : symbols_64.size());
   char *                      ot_strings = (char *)strtab;
-  uint32_t                    ot_strings_size = (char *)(dataController.fileData).bytes - strtab;
+  uint32_t                    ot_strings_size = (uint32_t)((char *)(dataController.fileData).bytes - strtab);
   uint32_t *                  ot_indirect_symbols = (isymbols.empty() ? NULL : const_cast<uint32_t *>(isymbols[0]));
-  uint32_t                    ot_nindirect_symbols = isymbols.size();
+  uint32_t                    ot_nindirect_symbols = (uint32_t)isymbols.size();
   struct load_command *       ot_load_commands = (struct load_command *)(commands[0]);
-  uint32_t                    ot_ncmds = commands.size();
+  uint32_t                    ot_ncmds = (uint32_t)commands.size();
   uint32_t                    ot_sizeofcmds = mach_header->sizeofcmds;
   cpu_type_t                  ot_cputype = mach_header->cputype;
   cpu_subtype_t               ot_cpu_subtype = mach_header->cpusubtype;
@@ -581,9 +581,9 @@ static AsmFootPrint const fastStubHelperHelperARM =
   BOOL                        ot_llvm_mc = FALSE; /* disassemble as llvm-mc will assemble */
 
   struct data_in_code_entry * ot_dices = (dices.empty() ? NULL : const_cast<struct data_in_code_entry *>(dices[0]));
-  uint32_t                    ot_ndices = dices.size();
+  uint32_t                    ot_ndices = (uint32_t)dices.size();
   char *                      ot_object_addr = (char *)mach_header;
-  uint32_t                    ot_object_size = imageSize;
+  uint32_t                    ot_object_size = (uint32_t)imageSize;
 
   #pragma message "TODO"
   struct dyld_bind_info *     ot_dbi = NULL;
@@ -673,7 +673,7 @@ static AsmFootPrint const fastStubHelperHelperARM =
       uint16_t n_desc;
       uint64_t n_value;
       
-      if([self is64bit] == NO)
+      if(self.is64bit == NO)
       {
         struct nlist const * nlist = symbols.at(i);
         n_type = nlist->n_type;
@@ -706,7 +706,7 @@ static AsmFootPrint const fastStubHelperHelperARM =
     NSNumber * symbolIndex = (NSNumber *)key;
     
     // skip external symbols
-    if (([self is64bit] == NO && (int32_t)symbolIndex.unsignedLongValue < 0) ||
+    if ((self.is64bit == NO && (int32_t)symbolIndex.unsignedLongValue < 0) ||
         (int64_t)symbolIndex.unsignedLongLongValue < 0)
     {
       continue;
@@ -724,7 +724,7 @@ static AsmFootPrint const fastStubHelperHelperARM =
         (int (*)(const void *, const void *))sym_compare);
 
   struct symbol *           ot_sorted_symbols = &sorted_symbols[0];
-  uint32_t                  ot_nsorted_symbols = sorted_symbols.size();
+  uint32_t                  ot_nsorted_symbols = (uint32_t)sorted_symbols.size();
   
   //===========================================================================
   /* collect relocations entries */
@@ -830,8 +830,8 @@ static AsmFootPrint const fastStubHelperHelperARM =
          ? arm_disassemble(
                            ot_sect,
                            ot_left,
-                           ot_addr,
-                           ot_sect_addr,
+                           (uint32_t)ot_addr,
+                           (uint32_t)ot_sect_addr,
                            ot_object_byte_sex,
                            ot_relocs,
                            ot_nrelocs,
@@ -864,7 +864,7 @@ static AsmFootPrint const fastStubHelperHelperARM =
                            ot_sect,
                            ot_left,
                            ot_addr,
-                           ot_sect_addr,
+                           (uint32_t)ot_sect_addr,
                            ot_object_byte_sex,
                            ot_relocs,
                            ot_nrelocs,
@@ -937,11 +937,11 @@ static AsmFootPrint const fastStubHelperHelperARM =
           }
           
           // print one line of asm
-          uint32_t fileOffset = ([self is64bit] == NO ? [self RVAToFileOffset:(uint32_t)ot_addr] : [self RVA64ToFileOffset:ot_addr]);
+          uint64_t fileOffset = (self.is64bit == NO ? [self RVAToFileOffset:(uint32_t)ot_addr] : [self RVA64ToFileOffset:ot_addr]);
           NSRange range = NSMakeRange(fileOffset,0);
           NSString * lastReadHex;
           [dataController read_bytes:range length:parsed_bytes lastReadHex:&lastReadHex];
-          [node.details appendRow:[NSString stringWithFormat:@"%.8X", fileOffset]
+          [node.details appendRow:[NSString stringWithFormat:@"%.8llX", fileOffset]
                                  :lastReadHex
                                  :NSSTRING(buf)
                                  :@""];

@@ -23,5 +23,4 @@
 #include <mach-o/compact_unwind_encoding.h>
 #include <mach-o/swap.h>
 
-#include <libkern/OSAtomic.h>
 #include <cxxabi.h>

@@ -19,8 +19,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createRelocNode:(MVNode *)parent
                      caption:(NSString *)caption
-                    location:(uint32_t)location
-                      length:(uint32_t)length
+                    location:(uint64_t)location
+                      length:(uint64_t)length
                  baseAddress:(uint32_t)baseAddress // start of the section containing the relocation (image: start of the first segment)
 {
   MVNodeSaver nodeSaver;
@@ -72,7 +72,7 @@ using namespace std;
     
     if (relocation_info)
     {
-      uint32_t relocLocation = [self RVAToFileOffset:baseAddress + relocation_info->r_address];
+      uint64_t relocLocation = [self RVAToFileOffset:baseAddress + relocation_info->r_address];
       NSRange rangeReloc = NSMakeRange(relocLocation,0);
       uint32_t relocValue = [dataController read_uint32:rangeReloc];
       uint32_t relocLength = (1 << relocation_info->r_length);
@@ -194,7 +194,7 @@ using namespace std;
                )
       {
         //read original content at relocation
-        uint32_t relocLocation = [self RVAToFileOffset:baseAddress + prev_scattered_relocation_info->r_address];
+        uint64_t relocLocation = [self RVAToFileOffset:baseAddress + prev_scattered_relocation_info->r_address];
         uint32_t relocLength = (1 << prev_scattered_relocation_info->r_length);
         NSAssert1(relocLength == sizeof(uint32_t), @"unsupported reloc length (%u)", relocLength);
         NSRange rangeReloc = NSMakeRange(relocLocation,0);
@@ -285,8 +285,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createReloc64Node:(MVNode *)parent
                        caption:(NSString *)caption
-                      location:(uint32_t)location
-                        length:(uint32_t)length
+                      location:(uint64_t)location
+                        length:(uint64_t)length
                    baseAddress:(uint64_t)baseAddress // start of the section containing the relocation (image: start of the first segment)
 {
   MVNodeSaver nodeSaver;
@@ -323,7 +323,7 @@ using namespace std;
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"Address"
-                           :[NSString stringWithFormat:@"0x%qX", relocation_info->r_address + baseAddress]];
+                           :[NSString stringWithFormat:@"0x%llX", relocation_info->r_address + baseAddress]];
 
     // read the second half of the entry
     [dataController read_uint32:range lastReadHex:&lastReadHex];
@@ -331,7 +331,7 @@ using namespace std;
     //========================================================================
     if (relocation_info->r_extern)
     {
-      uint32_t relocLocation = [self RVA64ToFileOffset:baseAddress + relocation_info->r_address];
+      uint64_t relocLocation = [self RVA64ToFileOffset:baseAddress + relocation_info->r_address];
       NSRange rangeReloc = NSMakeRange(relocLocation,0);
 
       // target symbol
@@ -348,7 +348,7 @@ using namespace std;
                              :lastReadHex
                              :@"Symbol"
                              :(nlist_64->n_type & N_TYPE) == N_SECT 
-                                ? [NSString stringWithFormat:@"0x%qX (%@)", nlist_64->n_value, symbolName]
+                                ? [NSString stringWithFormat:@"0x%llX (%@)", nlist_64->n_value, symbolName]
                                 : symbolName];
       
       symbolNames[@([self fileOffsetToRVA64:relocLocation])] =
@@ -397,7 +397,7 @@ using namespace std;
                                     ? [NSString stringWithFormat:@"-0x%X",-relocAddend] 
                                     : [NSString stringWithFormat:@"0x%X",relocAddend]];
           }
-          uint32_t relocValue = nlist_64->n_value - prev_nlist_64->n_value + relocAddend;
+          uint64_t relocValue = nlist_64->n_value - prev_nlist_64->n_value + relocAddend;
           
           // update real data
           [self addRelocAtFileOffset:relocLocation withLength:relocLength andValue:relocValue];
@@ -410,8 +410,8 @@ using namespace std;
           {
             [node.details appendRow:@"":@"":@"Addend"
                                    :(int64_t)relocAddend < 0
-                                    ? [NSString stringWithFormat:@"-0x%qX",-relocAddend] 
-                                    : [NSString stringWithFormat:@"0x%qX",relocAddend]];
+                                    ? [NSString stringWithFormat:@"-0x%llX",-relocAddend] 
+                                    : [NSString stringWithFormat:@"0x%llX",relocAddend]];
           }
           uint64_t relocValue = nlist_64->n_value - prev_nlist_64->n_value + relocAddend;
           
@@ -430,7 +430,7 @@ using namespace std;
         {
           // 32bit signed PC Rel
           NSParameterAssert(relocation_info->r_pcrel == true);
-          uint32_t relocValue = nlist_64->n_value - relocation_info->r_address - baseAddress - relocLength;
+          uint32_t relocValue = (uint32_t)(nlist_64->n_value - relocation_info->r_address - baseAddress - relocLength);
           uint32_t relocAddend = [dataController read_uint32:rangeReloc];
 
           if (mach_header_64->cputype == CPU_TYPE_X86_64)
@@ -463,8 +463,8 @@ using namespace std;
           {
             [node.details appendRow:@"":@"":@"Addend"
                                    :(int64_t)relocAddend < 0
-                                    ? [NSString stringWithFormat:@"-0x%qX",-relocAddend] 
-                                    : [NSString stringWithFormat:@"0x%qX",relocAddend]];
+                                    ? [NSString stringWithFormat:@"-0x%llX",-relocAddend] 
+                                    : [NSString stringWithFormat:@"0x%llX",relocAddend]];
           }
           
           // update real data
@@ -500,7 +500,7 @@ using namespace std;
                                     ? [NSString stringWithFormat:@"-0x%X",-relocAddend] 
                                     : [NSString stringWithFormat:@"0x%X",relocAddend]];
           }
-          uint32_t relocValue = *symbols_64.begin() - nlist_64 - 1;
+          uint32_t relocValue = (uint32_t)(*symbols_64.begin() - nlist_64 - 1);
           relocValue -= relocation_info->r_address + baseAddress + relocLength; // it is PC relative
           
           // update real data
@@ -517,8 +517,8 @@ using namespace std;
           {
             [node.details appendRow:@"":@"":@"Addend"
                                    :(int64_t)relocAddend < 0 
-                                    ? [NSString stringWithFormat:@"-0x%qX",-relocAddend]
-                                    : [NSString stringWithFormat:@"0x%qX",relocAddend]];
+                                    ? [NSString stringWithFormat:@"-0x%llX",-relocAddend]
+                                    : [NSString stringWithFormat:@"0x%llX",relocAddend]];
           }
           uint64_t relocValue = *symbols_64.begin() - nlist_64 - 1;
           
@@ -559,7 +559,7 @@ using namespace std;
                                :@"Section"
                                :[NSString stringWithFormat:@"%u %@", relocation_info->r_symbolnum, sectionName]];
         
-        uint32_t relocLocation = [self RVA64ToFileOffset:baseAddress + relocation_info->r_address];
+        uint64_t relocLocation = [self RVA64ToFileOffset:baseAddress + relocation_info->r_address];
         NSRange rangeReloc = NSMakeRange(relocLocation,0);
         uint64_t relocValue = 0;
         
@@ -679,8 +679,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createSymbolsNode:parent 
                        caption:(NSString *)caption
-                      location:(uint32_t)location
-                        length:(uint32_t)length
+                      location:(uint64_t)location
+                        length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -842,8 +842,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createSymbols64Node:parent 
                          caption:(NSString *)caption
-                        location:(uint32_t)location
-                          length:(uint32_t)length
+                        location:(uint64_t)location
+                          length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -971,7 +971,7 @@ using namespace std;
         NSString * nameToStore = symbolNames[@(nlist_64->n_value)];
         nameToStore = (nameToStore != nil 
                        ? [nameToStore stringByAppendingFormat:@"(%@)", symbolName] 
-                       : [NSString stringWithFormat:@"0x%qX (%@)", nlist_64->n_value, symbolName]);
+                       : [NSString stringWithFormat:@"0x%llX (%@)", nlist_64->n_value, symbolName]);
         
         symbolNames[@(nlist_64->n_value)] = nameToStore;
       }
@@ -999,8 +999,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createReferencesNode:parent 
                           caption:(NSString *)caption
-                         location:(uint32_t)location
-                           length:(uint32_t)length
+                         location:(uint64_t)location
+                           length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -1053,8 +1053,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createISymbolsNode:parent
                         caption:(NSString *)caption
-                       location:(uint32_t)location
-                         length:(uint32_t)length
+                       location:(uint64_t)location
+                         length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -1064,7 +1064,7 @@ using namespace std;
   
   for (uint32_t nindsym = 0; nindsym < length / sizeof(uint32_t); ++nindsym)
   {
-    uint32_t nsect = sections.size();
+    uint32_t nsect = (uint32_t)sections.size();
     while (--nsect > 0)
     {
       struct section const * section = [self getSectionByIndex:nsect];
@@ -1178,8 +1178,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createISymbols64Node:parent
                           caption:(NSString *)caption
-                         location:(uint32_t)location
-                           length:(uint32_t)length
+                         location:(uint64_t)location
+                           length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -1189,7 +1189,7 @@ using namespace std;
   
   for (uint32_t nindsym = 0; nindsym < length / sizeof(uint32_t); ++nindsym)
   {
-    uint32_t nsect = sections_64.size();
+    uint32_t nsect = (uint32_t)sections_64.size();
     while (--nsect > 0)
     {
       struct section_64 const * section_64 = [self getSection64ByIndex:nsect];
@@ -1265,7 +1265,7 @@ using namespace std;
           {
             [node.details appendRow:@"":@"":@"40000000":@"INDIRECT_SYMBOL_ABS"];
             color = [NSColor greenColor];
-            symbolName = [NSString stringWithFormat:@"[0x%qX->ABSOLUTE]",indirectAddress];
+            symbolName = [NSString stringWithFormat:@"[0x%llX->ABSOLUTE]",indirectAddress];
           } break;
             
           default:
@@ -1273,7 +1273,7 @@ using namespace std;
             [node.details appendRow:@"":@"":@"80000000":@"INDIRECT_SYMBOL_LOCAL"];
             [node.details appendRow:@"":@"":@"40000000":@"INDIRECT_SYMBOL_ABS"];
             color = [NSColor orangeColor];
-            symbolName = [NSString stringWithFormat:@"[0x%qX->LOCAL ABSOLUTE]",indirectAddress];
+            symbolName = [NSString stringWithFormat:@"[0x%llX->LOCAL ABSOLUTE]",indirectAddress];
           }
         }
         
@@ -1287,7 +1287,7 @@ using namespace std;
                                string(section_64->sectname,16).c_str()]];
       
       [node.details appendRow:@"":@"":@"Indirect Address"
-                             :[NSString stringWithFormat:@"0x%qX ($+%qu)", indirectAddress, indirectAddress - section_64->addr]];
+                             :[NSString stringWithFormat:@"0x%llX ($+%qu)", indirectAddress, indirectAddress - section_64->addr]];
       
       [node.details setAttributesFromRowIndex:bookmark:MVMetaDataAttributeName,symbolName,
                                                         MVCellColorAttributeName,color,nil];
@@ -1303,8 +1303,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createTOCNode:parent
                    caption:(NSString *)caption
-                  location:(uint32_t)location
-                    length:(uint32_t)length
+                  location:(uint64_t)location
+                    length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -1354,8 +1354,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createTOC64Node:parent
                      caption:(NSString *)caption
-                    location:(uint32_t)location
-                      length:(uint32_t)length
+                    location:(uint64_t)location
+                      length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -1405,8 +1405,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createModulesNode:parent
                        caption:(NSString *)caption
-                      location:(uint32_t)location
-                        length:(uint32_t)length
+                      location:(uint64_t)location
+                        length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -1517,8 +1517,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createModules64Node:parent
                          caption:(NSString *)caption
-                        location:(uint32_t)location
-                          length:(uint32_t)length
+                        location:(uint64_t)location
+                          length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver]; 
@@ -1629,8 +1629,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createTwoLevelHintsNode:parent 
                              caption:(NSString *)caption
-                            location:(uint32_t)location
-                              length:(uint32_t)length
+                            location:(uint64_t)location
+                              length:(uint64_t)length
                                index:(uint32_t)index
 {
   MVNodeSaver nodeSaver;
@@ -1649,13 +1649,13 @@ using namespace std;
                            :@"Subimage"
                            :[NSString stringWithFormat:@"%u", twolevel_hint->isub_image]];
 
-    uint32_t libOrdinal = GET_LIBRARY_ORDINAL([self is64bit] == NO 
+    uint32_t libOrdinal = GET_LIBRARY_ORDINAL(self.is64bit == NO 
                                                ? [self getSymbolByIndex:index]->n_desc
                                                : [self getSymbol64ByIndex:index]->n_desc);
     struct dylib const * dylib = [self getDylibByIndex:libOrdinal];
 
     NSString * symbolName = [NSString stringWithFormat:@"%s (from %@)",
-                             strtab +([self is64bit] == NO 
+                             strtab +(self.is64bit == NO 
                                         ? [self getSymbolByIndex:index]->n_un.n_strx
                                         : [self getSymbol64ByIndex:index]->n_un.n_strx),
                              (libOrdinal == SELF_LIBRARY_ORDINAL ? @"SELF_LIBRARY_ORDINAL" :
@@ -1677,8 +1677,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createSplitSegmentNode:parent
                             caption:(NSString *)caption
-                           location:(uint32_t)location
-                             length:(uint32_t)length
+                           location:(uint64_t)location
+                             length:(uint64_t)length
                         baseAddress:(uint64_t)baseAddress
 {
   MVNodeSaver nodeSaver;
@@ -1736,8 +1736,8 @@ using namespace std;
                              :lastReadHex
                              :@"uleb128"
                              :[NSString stringWithFormat:@"%@ %@",
-                               [self is64bit] == NO ? [self findSectionContainsRVA:address] : [self findSectionContainsRVA64:address],
-                               (symbolName = [self is64bit] == NO ? [self findSymbolAtRVA:(uint32_t)address] : [self findSymbolAtRVA64:address])]];
+                               self.is64bit == NO ? [self findSectionContainsRVA:address] : [self findSectionContainsRVA64:address],
+                               (symbolName = self.is64bit == NO ? [self findSymbolAtRVA:(uint32_t)address] : [self findSymbolAtRVA64:address])]];
       
       [node.details setAttributes:MVMetaDataAttributeName,symbolName,nil]; 
       
@@ -1752,8 +1752,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createFunctionStartsNode:parent
                               caption:(NSString *)caption
-                             location:(uint32_t)location
-                               length:(uint32_t)length
+                             location:(uint64_t)location
+                               length:(uint64_t)length
                           baseAddress:(uint64_t)baseAddress
 {
   MVNodeSaver nodeSaver;
@@ -1773,7 +1773,7 @@ using namespace std;
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"uleb128"
-                           :(symbolName = [self is64bit] == NO ? 
+                           :(symbolName = self.is64bit == NO ? 
                               [self findSymbolAtRVA:(uint32_t)address] :
                               [self findSymbolAtRVA64:address])];
 
@@ -1786,8 +1786,8 @@ using namespace std;
 //-----------------------------------------------------------------------------
 - (MVNode *) createDataInCodeEntriesNode:parent
                                  caption:(NSString *)caption
-                                location:(uint32_t)location
-                                  length:(uint32_t)length
+                                location:(uint64_t)location
+                                  length:(uint64_t)length
 {
   MVNodeSaver nodeSaver;
   MVNode * node = [parent insertChildWithDetails:caption location:location length:length saver:nodeSaver];
@@ -1804,8 +1804,10 @@ using namespace std;
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"Offset"
-                           :[self findSymbolAtRVA:[self fileOffsetToRVA:data_in_code_entry->offset + imageOffset]]];
-
+                           :self.is64bit == NO ?
+                             [self findSymbolAtRVA:[self fileOffsetToRVA:data_in_code_entry->offset + imageOffset]] :
+                             [self findSymbolAtRVA64:[self fileOffsetToRVA64:data_in_code_entry->offset + imageOffset]]];
+     
     [dataController read_uint16:range lastReadHex:&lastReadHex];
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex

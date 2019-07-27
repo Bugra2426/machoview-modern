@@ -399,33 +399,32 @@ enum ViewType
 {
   if (notification.object == dataController)
   {
-    dispatch_async(dispatch_get_main_queue(), ^
+    __weak typeof(leftView) weakLeftView = self->leftView;
+    
+    // Update UI here, on the main queue
+    NSDictionary * userInfo = notification.userInfo;
+    if (userInfo)
     {
-      // Update UI here, on the main queue
-      NSDictionary * userInfo = notification.userInfo;
-      if (userInfo)
+      //refresh the modified node only
+      MVNode * node = userInfo[MVNodeUserInfoKey];
+      
+      dispatch_async(dispatch_get_main_queue(), ^
       {
-        //refresh the modified node only
-        MVNode * node = userInfo[MVNodeUserInfoKey];
-        
-        // check if the window still exists which contains the leftView to update
-        if (self.windowControllers.count == 0)
+        [weakLeftView reloadItem:node.parent];
+      
+        if ([weakLeftView isItemExpanded:node.parent])
         {
-          return;
+          [weakLeftView reloadItem:node];
         }
-        
-        [leftView reloadItem:node.parent];
-        
-        if ([leftView isItemExpanded:node.parent])
-        {
-          [leftView reloadItem:node];
-        }
-      }
-      else
+      });
+    }
+    else
+    {
+      dispatch_async(dispatch_get_main_queue(), ^
       {
-        [leftView reloadItem:dataController.rootNode reloadChildren:YES];
-      }
-    });
+        [weakLeftView reloadItem:self.dataController.rootNode reloadChildren:YES];
+      });
+    }
   }
 }
 
@@ -451,9 +450,9 @@ enum ViewType
       {
         dispatch_async(dispatch_get_main_queue(), ^
                        {
-                         [progressIndicator setUsesThreadedAnimation:YES];
-                         [progressIndicator startAnimation:nil];
-                         [stopButton setHidden:NO];
+                         [self->progressIndicator setUsesThreadedAnimation:YES];
+                         [self->progressIndicator startAnimation:nil];
+                         [self->stopButton setHidden:NO];
                        });
       }
     }
@@ -463,9 +462,9 @@ enum ViewType
       {
         dispatch_async(dispatch_get_main_queue(), ^
                        {
-                         [progressIndicator stopAnimation:nil];
-                         statusText.stringValue = @"";
-                         [stopButton setHidden:YES];
+                         [self->progressIndicator stopAnimation:nil];
+                         self->statusText.stringValue = @"";
+                         [self->stopButton setHidden:YES];
                        });
       }
     }
@@ -667,7 +666,7 @@ enum ViewType
   {
     case e_details:       
     case e_details64:
-      column0.headerCell.stringValue = [self isRVA] == NO ? @"Offset" : @"Address";
+      column0.headerCell.stringValue = self.isRVA == NO ? @"Offset" : @"Address";
       column1.headerCell.stringValue = @"Data";
       column2.headerCell.stringValue = @"Description";
       column3.headerCell.stringValue = @"Value"; 
@@ -680,7 +679,7 @@ enum ViewType
       
     case e_hex:
     case e_hex64:
-      column0.headerCell.stringValue = [self isRVA] == NO ? @"pFile" : @"Address";
+      column0.headerCell.stringValue = self.isRVA == NO ? @"pFile" : @"Address";
       column1.headerCell.stringValue = @"Data LO";
       column2.headerCell.stringValue = @"Data HI";
       column3.headerCell.stringValue = @"Value";
