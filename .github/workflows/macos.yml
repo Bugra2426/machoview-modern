@@ -10,7 +10,8 @@ permissions:
 
 concurrency:
   group: macos-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not interrupt a version-tagged release with another run for that tag.
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
   build:
@@ -23,11 +24,17 @@ jobs:
             deployment: '15.0'
           - runner: macos-26
             deployment: '26.0'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     # These standard hosted labels are ARM64 (not the Intel or large labels).
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Verify native runner and toolchain
         run: |
@@ -38,10 +45,13 @@ jobs:
           xcrun --sdk macosx --show-sdk-version
           sw_vers
           python3 -I scripts/check-project.py
+          python3 -I -m unittest discover -s tests -p 'test_*.py' -v
+          for script in scripts/*.sh; do bash -n "$script"; done
           plutil -lint Info.plist machoview.xcodeproj/project.pbxproj
           bash otool_disasm/tests/run-tests.sh
 
       - name: Set release version
+        id: version
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
@@ -56,6 +66,7 @@ jobs:
             version="${REF_NAME#v}"
           fi
           printf 'RELEASE_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
 
       - name: Build native release
         run: |
@@ -81,14 +92,23 @@ jobs:
           subprocess.run([sys.argv[1], '--self-test'], check=True, timeout=120)
           PY
 
-      - name: Package application
+      - name: Prepare DMG packaging tools
+        run: |
+          set -euo pipefail
+          python3 -m venv build/packaging-venv
+          build/packaging-venv/bin/python -m pip install --disable-pip-version-check \
+            -r scripts/packaging-requirements.txt
+          printf '%s/build/packaging-venv/bin\n' "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
+
+      - name: Package and verify DMG and ZIP
         run: |
           set -euo pipefail
           mkdir -p build/artifacts
-          ditto -c -k --sequesterRsrc --keepParent \
-            build/DerivedData/Build/Products/Release/MachOView.app \
-            build/artifacts/MachOView-${{ matrix.runner }}-arm64.zip
-          shasum -a 256 build/artifacts/*.zip > build/artifacts/SHA256SUMS.txt
+          app=build/DerivedData/Build/Products/Release/MachOView.app
+          name="MachOView-$RELEASE_VERSION-${{ matrix.runner }}-arm64"
+          bash scripts/package-dmg.sh "$app" "build/artifacts/$name.dmg" arm64 2>&1 | tee packaging.log
+          ditto -c -k --sequesterRsrc --keepParent "$app" "build/artifacts/$name.zip"
+          (cd build/artifacts && shasum -a 256 ./*.dmg ./*.zip > SHA256SUMS.txt)
 
       - name: Upload native application
         uses: actions/upload-artifact@v4
@@ -98,40 +118,40 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload build log
+      - name: Upload build and packaging logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log-${{ matrix.runner }}
-          path: build.log
+          path: |
+            build.log
+            packaging.log
           if-no-files-found: ignore
 
   release:
-    name: Publish tagged release
+    name: Publish tested downloads
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: >-
+      github.event_name == 'push' &&
+      (startsWith(github.ref, 'refs/tags/v') ||
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - name: Download tested application ZIPs
+      - uses: actions/checkout@v4
+
+      - name: Download both tested DMG and ZIP artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: MachOView-*-arm64
           path: release-artifacts
 
-      - name: Publish GitHub Release
+      - name: Publish stable release or default-branch preview
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          mkdir -p dist
-          find release-artifacts -name '*.zip' -exec cp {} dist/ \;
-          test "$(find dist -name '*.zip' | wc -l)" -eq 2
-          (cd dist && sha256sum *.zip > SHA256SUMS.txt)
-          gh release create "$RELEASE_TAG" dist/*.zip dist/SHA256SUMS.txt \
-            --verify-tag --title "MachOView $RELEASE_TAG" --generate-notes \
-            --notes 'Native Apple Silicon (arm64), optimized Release builds. Choose the macos-15 ZIP for macOS 15 or later; the macos-26 ZIP requires macOS 26 or later. No Rosetta required. These builds are ad-hoc signed, not Developer ID signed or Apple notarized. See README.md for installation and known parser limitations.'
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: bash scripts/publish-release.sh release-artifacts dist

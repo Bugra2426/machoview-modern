@@ -2,17 +2,13 @@
 # Embed the selected Xcode's native LLVM backend, never the historical Intel blob.
 set -euo pipefail
 
-: "${TOOLCHAIN_DIR:?Run this script from the Xcode build phase}"
-: "${TARGET_BUILD_DIR:?}"
+: "${TARGET_BUILD_DIR:?Run this script from the Xcode build phase}"
 : "${FRAMEWORKS_FOLDER_PATH:?}"
 : "${ARCHS:?}"
-source_library="${TOOLCHAIN_DIR}/usr/lib/libLTO.dylib"
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source_library=$(bash "$script_dir/find-llvm.sh")
 destination="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/libLTO.dylib"
-
-if [[ ! -f "$source_library" ]]; then
-  printf 'error: Selected Xcode has no libLTO: %s\n' "$source_library" >&2
-  exit 1
-fi
+printf 'Embedding compiler LLVM: %s\n' "$source_library"
 # An Intel-only dependency must fail the build, rather than fail at launch.
 for architecture in $ARCHS; do
   /usr/bin/lipo "$source_library" -verify_arch "$architecture"

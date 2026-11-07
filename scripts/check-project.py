@@ -72,6 +72,9 @@ def check():
     built_c_sources = {Path(p).name for p in source_paths if p.endswith('.c')}
     assert c_sources == built_c_sources, f'Disassembler source mismatch: {c_sources ^ built_c_sources}'
     assert 'tests/data-controller-tests.mm' in source_paths
+    embed_phase = objects['3C2656DF11F8E35C002D8A1C']
+    assert '$(SRCROOT)/scripts/find-llvm.sh' in embed_phase['inputPaths']
+    assert not any('$(TOOLCHAIN_DIR)' in path for path in embed_phase['inputPaths']), 'Metal toolchain is not the compiler LLVM source'
     for obj in objects.values():
         if obj['isa'] != 'XCBuildConfiguration':
             continue

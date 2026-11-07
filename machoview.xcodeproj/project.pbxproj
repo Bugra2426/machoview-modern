@@ -359,7 +359,7 @@
 			buildActionMask = 2147483647;
 			alwaysOutOfDate = 1;
 			files = ();
-			inputPaths = ("$(SRCROOT)/scripts/embed-llvm.sh", "$(TOOLCHAIN_DIR)/usr/lib/libLTO.dylib");
+			inputPaths = ("$(SRCROOT)/scripts/embed-llvm.sh", "$(SRCROOT)/scripts/find-llvm.sh");
 			name = "Embed native LLVM";
 			outputPaths = ("$(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/libLTO.dylib");
 			runOnlyForDeploymentPostprocessing = 0;

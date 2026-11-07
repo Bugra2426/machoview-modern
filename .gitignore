@@ -1,5 +1,7 @@
 DerivedData
 build/
 .DS_Store
+__pycache__/
+*.py[cod]
 machoview.xcodeproj/project.xcworkspace
 machoview.xcodeproj/xcuserdata

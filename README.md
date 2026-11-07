@@ -24,11 +24,21 @@ A full appearance update would require adaptive custom colors, contrast and sele
 
 ## Downloading a build
 
-After a successful run, the **Actions → Native macOS build → Artifacts** section contains an app ZIP for each macOS baseline, plus checksums and build logs. Version-tagged runs also attach both ZIPs and a combined `SHA256SUMS.txt` to **GitHub Releases**.
+Open **[GitHub Releases](https://github.com/Bugra2426/machoview-modern/releases)** for installable downloads. Successful pushes to `main` publish **preview releases** automatically; version tags publish **stable releases**. Both macOS jobs must pass before either kind of release is published.
 
-1. Choose the `macos-15-arm64` ZIP for macOS 15 or later, or `macos-26-arm64` for macOS 26 or later.
-2. Extract `MachOView.app` and move it to Applications.
-3. The builds are **ad-hoc signed, not Developer ID signed or Apple notarized**. macOS can display a security warning. Only if you trust the source and have verified the download, use the app-specific **System Settings → Privacy & Security → Open Anyway** option, if offered. Do not disable Gatekeeper globally.
+Each release includes:
+
+- `MachOView-VERSION-macos-15-arm64.dmg` — for macOS 15 or later.
+- `MachOView-VERSION-macos-26-arm64.dmg` — for macOS 26 or later.
+- Matching `.zip` alternatives and a combined `SHA256SUMS.txt` covering all four downloads.
+
+The DMG uses a custom installation background, arranged icons, and an **Applications** shortcut. It installs no privileged helper and does not run an installer script.
+
+1. Download the DMG for your macOS version and verify its SHA-256 against the release checksums.
+2. Open the DMG and drag **MachOView** onto **Applications**. Eject the disk image, then launch the app from Applications. For a ZIP, extract `MachOView.app` and move it to Applications yourself.
+3. The app is **ad-hoc signed, not Developer ID signed or Apple notarized**. A DMG does not remove Gatekeeper warnings or confer publisher verification. Only if you trust the source and have verified the download, use the app-specific **System Settings → Privacy & Security → Open Anyway** option, if offered. Do not disable Gatekeeper globally.
+
+**Actions → Native macOS build → Artifacts** also contains the DMG/ZIP bundles and checksums, with separate build and packaging logs. Pull requests, non-default branches, and manual runs produce artifacts only; they do not publish releases.
 
 Ad-hoc signing provides local code-signature integrity, not publisher verification. Uninterrupted public distribution needs a Developer ID signing/notarization setup; no Apple credentials are required or used by this workflow.
 
@@ -47,31 +57,51 @@ bash scripts/verify-app.sh build/DerivedData/Build/Products/Release/MachOView.ap
 build/DerivedData/Build/Products/Release/MachOView.app/Contents/MacOS/MachOView --self-test
 ```
 
-The build compiles `otool_disasm/*.c` (excluding the duplicate `symbol.c`) directly into the app. It copies `libLTO.dylib` from the **selected Xcode toolchain** into `Contents/Frameworks`, rejects missing architecture slices or non-system dependencies, and signs the nested library before the app. The distributed app loads only its bundled library; the recipient does not need Xcode or Homebrew.
+The build compiles `otool_disasm/*.c` (excluding the duplicate `symbol.c`) directly into the app. It copies `libLTO.dylib` from the **selected Xcode compiler toolchain** into `Contents/Frameworks`, rejects missing architecture slices or non-system dependencies, and signs the nested library before the app. The distributed app loads only its bundled library; the recipient does not need Xcode or Homebrew.
 
-The historical root `libdisasm.a` and `lib/libLTO.dylib` remain in the repository for provenance, but **neither is used or packaged**. Use the root project/shared scheme, not the historical disassembler subproject or `createdmg` script.
+**Xcode 26 toolchain selection:** Xcode can set `TOOLCHAIN_DIR` to its Metal toolchain, which does not contain the compiler's `libLTO.dylib`. `scripts/find-llvm.sh` instead checks `DT_TOOLCHAIN_DIR`, then `XcodeDefault.xctoolchain` under that build's `DEVELOPER_DIR`. It never falls back to the historical Intel library or an unrelated Xcode installation. Missing compiler LLVM still fails the build with a diagnostic.
+
+The historical root `libdisasm.a` and `lib/libLTO.dylib` remain in the repository for provenance, but **neither is used or packaged**. Use the root project/shared scheme, not the historical disassembler subproject. `createdmg` now forwards to the new packaging script and requires an already-built app.
 
 The default deployment target is 15.0. If using a newer toolchain whose bundled LLVM requires a newer OS, raise `MACOSX_DEPLOYMENT_TARGET` accordingly and test on that OS. CI keeps separate macOS 15 and 26 builds so each baseline is actually exercised.
+
+### Create the DMG locally
+
+After building and testing the app, use Python 3.10+ and install the build-only packaging dependency in a virtual environment (CI uses Python 3.12):
+
+```sh
+python3 -m venv build/packaging-venv
+build/packaging-venv/bin/python -m pip install -r scripts/packaging-requirements.txt
+PATH="$PWD/build/packaging-venv/bin:$PATH" bash scripts/package-dmg.sh \
+  build/DerivedData/Build/Products/Release/MachOView.app \
+  build/MachOView-local-arm64.dmg arm64
+```
+
+The pinned `dmgbuild` tool generates the Finder layout without automating Finder or needing an interactive desktop. Packaging preserves the signed app, verifies the finished image, and checks the copy mounted read-only, including the Applications shortcut. The tool and its Python dependencies are **not shipped inside the app or DMG**. Existing output files are not overwritten; choose a new filename for another build. The artwork changes the disk image's presentation, not the app's interface or Dark Mode support.
 
 ## GitHub builds and Releases
 
 `.github/workflows/macos.yml` runs on pushes, pull requests, and manual dispatches. Each Apple Silicon job:
 
 1. Verifies the runner is native ARM64 and records Xcode, SDK, and macOS versions.
-2. Checks project structure and runs portable decoder loader/output tests.
+2. Checks project structure and runs toolchain, release-policy, packaging-configuration, and portable decoder tests.
 3. Compiles an optimized **Release (`-O2`)** build with dead-code stripping.
 4. Checks all bundle architectures, dependency paths, and signatures.
 5. Runs headless decoder and data-controller regression tests with a timeout.
-6. Packages the app with macOS metadata preserved and uploads checksums and logs.
+6. Creates and verifies a custom DMG, packages a ZIP with macOS metadata preserved, and uploads both with checksums and logs.
 
-When ready to publish, commit and push the changes, then create and push a version tag:
+**Automatic previews:** a push to the repository's default branch (`main`) publishes a uniquely numbered `build-N` prerelease after both jobs succeed. The preview tag points at the exact built commit and does not replace the latest stable release. No manual tag is needed to get downloadable releases from `main`.
+
+**Stable releases:** when ready, create and push a version tag on the intended commit:
 
 ```sh
 git tag v2.5.0
 git push origin v2.5.0
 ```
 
-Tags must use `vMAJOR.MINOR.PATCH`. The tag supplies the application version; the workflow run number supplies the build number. Only a **tag push with both Mac jobs successful** can create a GitHub Release. Ordinary branch pushes and pull requests do not publish releases. The release job alone receives repository write permission. Creating a release for an already-published tag fails rather than silently replacing its assets; publish a new version tag for a new build.
+Stable tags must use `vMAJOR.MINOR.PATCH`. The tag supplies the application version; the workflow run number supplies the build number. **Both Mac jobs, native tests, and DMG checks must succeed**, and all four expected downloads must be present, before the release job publishes anything. Pull requests, non-default branches, and manual dispatches never publish. The release job alone receives repository write permission through `GITHUB_TOKEN`; no personal token is needed. Repository/organization policy must permit that write access.
+
+Existing releases and their assets are not overwritten. To publish a changed build, push a new commit for a new preview run, or use a new version tag for a stable release.
 
 ## Performance and correctness work
 
@@ -91,13 +121,16 @@ Portable checks (Linux or macOS):
 
 ```sh
 python3 -I scripts/check-project.py
+python3 -I -m unittest discover -s tests -p 'test_*.py' -v
 bash otool_disasm/tests/run-tests.sh
-bash -n scripts/embed-llvm.sh scripts/verify-app.sh
+for script in scripts/*.sh; do bash -n "$script"; done
 ```
 
 On macOS, build first and run `MachOView --self-test` as above. It checks the bundled LLVM on ARM64, pointer-authentication, and x86_64 instructions, plus data-controller regression tests. A successful compile alone is not the release gate.
 
-Cross-compiling source files against a macOS SDK on Linux can catch architecture/compiler errors, but cannot validate Interface Builder compilation, code signing, GUI behavior, or native execution. **The first green GitHub run and a hands-on Mac smoke test remain necessary.** In particular, open an ARM64 executable, an Intel Mach-O, a universal binary, and a static archive; browse/filter large tables, cancel parsing, and close/reopen documents.
+The portable release tests use a local `gh` stub: they verify event gating, preview/stable flags, required assets, and checksums without publishing anything. Toolchain tests reproduce Xcode 26's Metal-first environment without needing Xcode.
+
+Cross-compiling source files against a macOS SDK on Linux can catch architecture/compiler errors, but cannot validate Interface Builder compilation, code signing, DMG creation, GUI behavior, or native execution. **A green GitHub run for both macOS versions and a hands-on Mac smoke test remain necessary.** Mount the DMG, check its icon layout, copy the app to Applications, and launch it from there. Then open an ARM64 executable, an Intel Mach-O, a universal binary, and a static archive; browse/filter large tables, cancel parsing, and close/reopen documents. Check both light and dark system appearances.
 
 ## Known limitations
 
