@@ -1,204 +1,141 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <libc.h>
-#include <sys/file.h>
 #include <dlfcn.h>
-#include "llvm-c/Disassembler.h"
+#include <pthread.h>
+#include <stdio.h>
 #include "stuff/llvm.h"
-#include "stuff/allocate.h"
-#include <mach-o/dyld.h>
 
 /*
- * The disassembler API is currently exported from libLTO.dylib.  Eventually we
- * plan to include it (along with the current libLTO APIs) in a generic
- * libLLVM.dylib.
+ * The app embeds libLTO from the selected Xcode toolchain here. Never fall back
+ * to a developer's installed Xcode (or a library found on the search path): it
+ * may have the wrong architecture, API, or code signature. dyld expands
+ * @executable_path for dlopen, including when the app is moved or translocated.
  */
-#define LIB_LLVM "libLTO.dylib"
+#define LIB_LLVM "@executable_path/../Frameworks/libLTO.dylib"
 
-static int tried_to_load_llvm = 0;
-static void *llvm_handle = NULL;
-static void (*initialize)(void) = NULL;
+static pthread_once_t llvm_once = PTHREAD_ONCE_INIT;
+static void *llvm_handle;
 static LLVMDisasmContextRef (*create)(const char *, void *, int,
-	LLVMOpInfoCallback, LLVMSymbolLookupCallback) = NULL;
-static LLVMDisasmContextRef (*createCPU)(const char *, const char *,void *, int,
-	LLVMOpInfoCallback, LLVMSymbolLookupCallback) = NULL;
-static void (*dispose)(LLVMDisasmContextRef) = NULL;
+    LLVMOpInfoCallback, LLVMSymbolLookupCallback);
+static LLVMDisasmContextRef (*createCPU)(const char *, const char *, void *, int,
+    LLVMOpInfoCallback, LLVMSymbolLookupCallback);
+static void (*dispose)(LLVMDisasmContextRef);
 static size_t (*disasm)(LLVMDisasmContextRef, uint8_t *, uint64_t, uint64_t,
-	char *, size_t) = NULL;
-static int (*options)(LLVMDisasmContextRef, uint64_t) = NULL;
-static const char * (*version)(void) = NULL;
+    char *, size_t);
+static int (*options)(LLVMDisasmContextRef, uint64_t);
+static const char *(*version)(void);
 
-/*
- * load_llvm() will dynamically load libLTO.dylib if tried_to_load_llvm is 0,
- * and set llvm_handle to the value returned by dlopen() and set the function
- * pointers.
- */
-static void load_llvm(void)
+static void
+initialize_targets(void *handle)
 {
-   uint32_t bufsize;
-   char *p, *prefix, *llvm_path, buf[MAXPATHLEN], resolved_name[PATH_MAX];
-   int i;
+    void (*initialize)(void);
+    static const char *const targets[] = { "X86", "ARM", "AArch64" };
+    static const char *const components[] = {
+        "TargetInfo", "Target", "TargetMC", "AsmPrinter", "Disassembler"
+    };
+    size_t i, j;
+    char name[80];
 
-	if(tried_to_load_llvm == 0){
-	    tried_to_load_llvm = 1;
-	    /*
-	     * Construct the prefix to this executable assuming it is in a bin
-	     * directory relative to a lib directory of the matching lto library
-	     * and first try to load that.  If not then fall back to trying
-	     * "/Applications/Xcode.app/Contents/Developer/Toolchains/
-	     * XcodeDefault.xctoolchain/usr/lib/" LIB_LLVM.
-	     */
-	    bufsize = MAXPATHLEN;
-	    p = buf;
-	    i = _NSGetExecutablePath(p, &bufsize);
-	    if(i == -1){
-		p = allocate(bufsize);
-		_NSGetExecutablePath(p, &bufsize);
-	    }
-	    prefix = realpath(p, resolved_name);
-	    p = rindex(prefix, '/');
-	    if(p != NULL)
-		p[1] = '\0';
-	    llvm_path = makestr(prefix, "../lib/" LIB_LLVM, NULL);
+    initialize = (void (*)(void))dlsym(handle, "lto_initialize_disassembler");
+    if(initialize != NULL){
+        initialize();
+        return;
+    }
 
-	    llvm_handle = dlopen(llvm_path, RTLD_NOW);
-	    if(llvm_handle == NULL){
-		free(llvm_path);
-		llvm_path = NULL;
-		llvm_handle = dlopen("/Applications/Xcode.app/Contents/"
-				     "Developer/Toolchains/XcodeDefault."
-				     "xctoolchain/usr/lib/" LIB_LLVM,
-				     RTLD_NOW);
-	    }
-	    if(llvm_handle == NULL)
-		return;
-
-	    create = dlsym(llvm_handle, "LLVMCreateDisasm");
-	    dispose = dlsym(llvm_handle, "LLVMDisasmDispose");
-	    disasm = dlsym(llvm_handle, "LLVMDisasmInstruction");
-
-	    /* Note we allow these to not be defined */
-	    options = dlsym(llvm_handle, "LLVMSetDisasmOptions");
-	    createCPU = dlsym(llvm_handle, "LLVMCreateDisasmCPU");
-	    version = dlsym(llvm_handle, "lto_get_version");
-
-	    if(create == NULL ||
-	       dispose == NULL ||
-	       disasm == NULL){
-
-		dlclose(llvm_handle);
-		if(llvm_path != NULL)
-		    free(llvm_path);
-		llvm_handle = NULL;
-		create = NULL;
-		createCPU = NULL;
-		dispose = NULL;
-		disasm = NULL;
-		options = NULL;
-		version = NULL;
-		return;
-	    }
-	}
-	if(llvm_handle == NULL)
-	    return;
+    /* Newer LLVM builds may expose only the per-target initialization API. */
+    for(i = 0; i < sizeof(targets) / sizeof(targets[0]); i++){
+        for(j = 0; j < sizeof(components) / sizeof(components[0]); j++){
+            snprintf(name, sizeof(name), "LLVMInitialize%s%s",
+                     targets[i], components[j]);
+            initialize = (void (*)(void))dlsym(handle, name);
+            if(initialize != NULL)
+                initialize();
+        }
+    }
 }
 
-/*
- * Wrapper to dynamically load LIB_LLVM and call LLVMCreateDisasm().
- */
-__private_extern__
-LLVMDisasmContextRef
-llvm_create_disasm(
-const char *TripleName,
-const char *CPU,
-void *DisInfo,
-int TagType,
-LLVMOpInfoCallback GetOpInfo,
-LLVMSymbolLookupCallback SymbolLookUp)
+/* pthread_once publishes a complete API and finishes target registration before
+ * any caller can create a context. A missing/incompatible backend stays absent
+ * for this process; the app can still inspect files without disassembly. */
+static void
+load_llvm(void)
 {
-   LLVMDisasmContextRef DC;
+    void *handle = dlopen(LIB_LLVM, RTLD_NOW | RTLD_LOCAL);
+    if(handle == NULL)
+        return;
 
-	if(tried_to_load_llvm == 0){
-	    load_llvm();
-	}
-	if(llvm_handle == NULL)
-	    return(NULL);
+    create = (LLVMDisasmContextRef (*)(const char *, void *, int,
+        LLVMOpInfoCallback, LLVMSymbolLookupCallback))
+        dlsym(handle, "LLVMCreateDisasm");
+    dispose = (void (*)(LLVMDisasmContextRef))
+        dlsym(handle, "LLVMDisasmDispose");
+    disasm = (size_t (*)(LLVMDisasmContextRef, uint8_t *, uint64_t, uint64_t,
+        char *, size_t))dlsym(handle, "LLVMDisasmInstruction");
+    if(create == NULL || dispose == NULL || disasm == NULL){
+        create = NULL;
+        dispose = NULL;
+        disasm = NULL;
+        dlclose(handle);
+        return;
+    }
 
-	/*
-	 * Note this was added after the interface was defined, so it may
-	 * be undefined.  But if not we must call it first.
-	 */
-	initialize = dlsym(llvm_handle, "lto_initialize_disassembler");
-	if(initialize != NULL)
-	    initialize();
-
-	if(*CPU != '\0' && createCPU != NULL)
-	    DC = createCPU(TripleName, CPU, DisInfo, TagType, GetOpInfo,
-			   SymbolLookUp);
-	else
-	    DC = create(TripleName, DisInfo, TagType, GetOpInfo, SymbolLookUp);
-	return(DC);
+    /* Optional APIs, not present in every libLTO release. */
+    createCPU = (LLVMDisasmContextRef (*)(const char *, const char *, void *, int,
+        LLVMOpInfoCallback, LLVMSymbolLookupCallback))
+        dlsym(handle, "LLVMCreateDisasmCPU");
+    options = (int (*)(LLVMDisasmContextRef, uint64_t))
+        dlsym(handle, "LLVMSetDisasmOptions");
+    version = (const char *(*)(void))dlsym(handle, "lto_get_version");
+    initialize_targets(handle);
+    /* Keep the library loaded for the lifetime of all contexts/callbacks. */
+    llvm_handle = handle;
 }
 
-/*
- * Wrapper to call LLVMDisasmDispose().
- */
-__private_extern__
-void
-llvm_disasm_dispose(
-LLVMDisasmContextRef DC)
+__private_extern__ LLVMDisasmContextRef
+llvm_create_disasm(const char *TripleName, const char *CPU, void *DisInfo,
+    int TagType, LLVMOpInfoCallback GetOpInfo,
+    LLVMSymbolLookupCallback SymbolLookUp)
 {
-	if(dispose != NULL)
-	    dispose(DC);
+    pthread_once(&llvm_once, load_llvm);
+    if(llvm_handle == NULL || TripleName == NULL)
+        return NULL;
+    if(CPU != NULL && *CPU != '\0' && createCPU != NULL)
+        return createCPU(TripleName, CPU, DisInfo, TagType, GetOpInfo,
+                         SymbolLookUp);
+    return create(TripleName, DisInfo, TagType, GetOpInfo, SymbolLookUp);
 }
 
-/*
- * Wrapper to call LLVMDisasmInstruction().
- */
-__private_extern__
-size_t
-llvm_disasm_instruction(
-LLVMDisasmContextRef DC,
-uint8_t *Bytes,
-uint64_t BytesSize,
-uint64_t Pc,
-char *OutString,
-size_t OutStringSize)
+__private_extern__ void
+llvm_disasm_dispose(LLVMDisasmContextRef DC)
 {
-
-	if(disasm == NULL)
-	    return(0);
-	return(disasm(DC, Bytes, BytesSize, Pc, OutString, OutStringSize));
+    pthread_once(&llvm_once, load_llvm);
+    if(DC != NULL && dispose != NULL)
+        dispose(DC);
 }
 
-/*
- * Wrapper to call LLVMSetDisasmOptions().
- */
-__private_extern__
-int
-llvm_disasm_set_options(
-LLVMDisasmContextRef DC,
-uint64_t Options)
+__private_extern__ size_t
+llvm_disasm_instruction(LLVMDisasmContextRef DC, uint8_t *Bytes,
+    uint64_t BytesSize, uint64_t Pc, char *OutString, size_t OutStringSize)
 {
-
-	if(options == NULL)
-	    return(0);
-	return(options(DC, Options));
+    pthread_once(&llvm_once, load_llvm);
+    if(OutString != NULL && OutStringSize != 0)
+        OutString[0] = '\0';
+    if(DC == NULL || disasm == NULL || Bytes == NULL || BytesSize == 0 ||
+       OutString == NULL || OutStringSize == 0)
+        return 0;
+    return disasm(DC, Bytes, BytesSize, Pc, OutString, OutStringSize);
 }
 
-/*
- * Wrapper to call lto_get_version().
- */
-__private_extern__
-const char *
+__private_extern__ int
+llvm_disasm_set_options(LLVMDisasmContextRef DC, uint64_t Options)
+{
+    pthread_once(&llvm_once, load_llvm);
+    if(DC == NULL || options == NULL)
+        return 0;
+    return options(DC, Options);
+}
+
+__private_extern__ const char *
 llvm_disasm_version_string(void)
 {
-	if(tried_to_load_llvm == 0){
-	    load_llvm();
-	}
-	if(llvm_handle == NULL)
-	    return(NULL);
-	if(version == NULL)
-	    return(NULL);
-	return(version());
+    pthread_once(&llvm_once, load_llvm);
+    return version != NULL ? version() : NULL;
 }

@@ -40,6 +40,7 @@
 #include "ofile_print.h"
 #include "arm_disasm.h"
 #include "cxa_demangle.h"
+#include "disasm_output.h"
 
 /* Used by otool(1) to stay or switch out of thumb mode */
 enum bool in_thumb = FALSE;
@@ -63,7 +64,7 @@ typedef char bfd_byte;
 #define BFD_ENDIAN_BIG BIG_ENDIAN_BYTE_SEX
 
 /* HACKS to avoid pulling in all of FSF binutils include/dis-asm.h */
-typedef int (*fprintf_ftype) (void *, const char*, ...);
+typedef int (*fprintf_ftype) (FILE *, const char*, ...);
 static struct disassemble_info { /* HACK'ed up for just what we need here */
   fprintf_ftype fprintf_func;
   void *stream;
@@ -5803,8 +5804,8 @@ uint32_t ninsts)
 {
     uint32_t bytes_consumed, pool_value, i, offset;
 
-	dis_info.fprintf_func = (fprintf_ftype)fprintf;
-  	dis_info.stream = stdout;
+	dis_info.fprintf_func = fprintf;
+	dis_info.stream = disasm_output_stream();
 	dis_info.print_address_func = print_address_func;
 	dis_info.print_immediate_func = print_immediate_func;
 

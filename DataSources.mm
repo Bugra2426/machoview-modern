@@ -14,6 +14,19 @@
 
 NSString * const MVScannerErrorMessage  = @"NSScanner error";
 
+static NSString * MVHexBytes(const uint8_t * bytes, NSUInteger count)
+{
+  static const char digits[] = "0123456789ABCDEF";
+  char text[24];
+  for (NSUInteger index = 0; index < count; ++index)
+  {
+    text[index * 3] = digits[bytes[index] >> 4];
+    text[index * 3 + 1] = digits[bytes[index] & 15];
+    text[index * 3 + 2] = ' ';
+  }
+  return [[NSString alloc] initWithBytes:text length:count * 3 encoding:NSASCIIStringEncoding];
+}
+
 //============================================================================
 @implementation MVDataSourceTree
 
@@ -90,8 +103,11 @@ NSString * const MVScannerErrorMessage  = @"NSScanner error";
   // if there is no details, then provide binary dump
   if (selectedNode.details == nil)
   {
-    NSInteger numRows = selectedNode.dataRange.length / 16;
-    if (selectedNode.dataRange.length % 16 != 0)
+    NSRange range = selectedNode.dataRange;
+    NSUInteger fileLength = document.dataController.fileData.length;
+    NSUInteger length = range.location <= fileLength ? MIN(range.length, fileLength - range.location) : 0;
+    NSInteger numRows = length / 16;
+    if (length % 16 != 0)
     {
       ++numRows;
     }
@@ -120,7 +136,11 @@ NSString * const MVScannerErrorMessage  = @"NSScanner error";
   // if it has no details then show binary data at given range
   if (selectedNode.details == nil)
   {
-    NSUInteger offset = selectedNode.dataRange.location + rowIndex * 16;
+    NSRange range = selectedNode.dataRange;
+    NSUInteger fileLength = document.dataController.fileData.length;
+    NSUInteger length = range.location <= fileLength ? MIN(range.length, fileLength - range.location) : 0;
+    if (rowIndex < 0 || (NSUInteger)rowIndex >= length / 16 + (length % 16 != 0)) return nil;
+    NSUInteger offset = range.location + (NSUInteger)rowIndex * 16;
     
     // file offset
     if (colIndex == OFFSET_COLUMN)
@@ -137,26 +157,18 @@ NSString * const MVScannerErrorMessage  = @"NSScanner error";
     // binary data
     uint8_t buffer[17] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     
-    NSUInteger len = MIN(selectedNode.dataRange.length - rowIndex * 16, (NSUInteger)16);
+    NSUInteger len = MIN(length - (NSUInteger)rowIndex * 16, (NSUInteger)16);
     
     memcpy(buffer, (uint8_t *)(document.dataController.fileData).bytes + offset, len);
     
     if (colIndex == DATA_LO_COLUMN)
     {
-      NSUInteger index = (len > 8 ? 8 : len); 
-            
-      return [[NSString stringWithFormat:@"%.2X %.2X %.2X %.2X %.2X %.2X %.2X %.2X ", 
-              buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]]
-              substringToIndex:index*3];
+      return MVHexBytes(buffer, MIN(len, (NSUInteger)8));
     }
     
     if (colIndex == DATA_HI_COLUMN)
     {
-      NSUInteger index = (len > 8 ? len - 8 : 0);
-      
-      return [[NSString stringWithFormat:@"%.2X %.2X %.2X %.2X %.2X %.2X %.2X %.2X ", 
-              buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]]
-              substringToIndex:index*3];
+      return MVHexBytes(buffer + 8, len > 8 ? len - 8 : 0);
     }
     
     // textual data (where possible)
@@ -169,7 +181,7 @@ NSString * const MVScannerErrorMessage  = @"NSScanner error";
       }
     }
     
-    return NSSTRING(buffer);
+    return [[NSString alloc] initWithBytes:buffer length:len encoding:NSASCIIStringEncoding];
   }
   
   // if it has descripion then show it
@@ -253,7 +265,7 @@ NSString * const MVScannerErrorMessage  = @"NSScanner error";
       
       NSMutableData * mdata = [NSMutableData dataWithCapacity:dataRange.length];
       
-      static char buf[3];
+      char buf[3] = {0, 0, 0};
       char const * orgstr = CSTRING(cellContent);
       for (NSUInteger s = 0; s < cellContent.length; s += 2)
       {
@@ -269,9 +281,15 @@ NSString * const MVScannerErrorMessage  = @"NSScanner error";
 
     // update the cell content to indicate changes
     //================================================
-    selectedNode.detailsOffset = 0;
-    [selectedNode.details updateCellContentTo:cellContent atRow:rowIndex andCol:colIndex];
-    [selectedNode.details setAttributesForRowIndex:rowIndex:MVTextColorAttributeName,[NSColor redColor],nil];
+    MVLayout * layout = selectedNode.userInfo[MVLayoutUserInfoKey];
+    [layout.archiver suspend];
+    @try
+    {
+      selectedNode.detailsOffset = 0;
+      [selectedNode.details updateDisplayedCellContentTo:cellContent atRow:rowIndex andCol:colIndex];
+      [layout.archiver addObjectToSave:selectedNode]; // persist the updated row index too
+    }
+    @finally { [layout.archiver resume]; }
   }
   else
   // option2: group of bytes

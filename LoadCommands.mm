@@ -13,6 +13,25 @@
 
 using namespace std;
 
+// On-disk x86 thread states must also be readable on an ARM host. The SDK's
+// mach/i386/thread_status.h intentionally exposes its types only on x86.
+struct MVX86ThreadState
+{
+  struct { uint32_t flavor, count; } tsh;
+  union {
+    struct {
+      uint32_t __eax, __ebx, __ecx, __edx, __edi, __esi, __ebp, __esp;
+      uint32_t __ss, __eflags, __eip, __cs, __ds, __es, __fs, __gs;
+    } ts32;
+    struct {
+      uint64_t __rax, __rbx, __rcx, __rdx, __rdi, __rsi, __rbp, __rsp;
+      uint64_t __r8, __r9, __r10, __r11, __r12, __r13, __r14, __r15;
+      uint64_t __rip, __rflags, __cs, __fs, __gs;
+    } ts64;
+  } uts;
+};
+static_assert(sizeof(MVX86ThreadState) == 176, "x86 wire layout changed");
+
 //============================================================================
 @implementation MachOLayout (LoadCommands)
 
@@ -69,6 +88,12 @@ using namespace std;
     case LC_DYLIB_CODE_SIGN_DRS:  return @"LC_DYLIB_CODE_SIGN_DRS";
     case LC_LINKER_OPTION:        return @"LC_LINKER_OPTION";
     case LC_LINKER_OPTIMIZATION_HINT: return @"LC_LINKER_OPTIMIZATION_HINT";
+    case LC_BUILD_VERSION:        return @"LC_BUILD_VERSION";
+    case LC_DYLD_EXPORTS_TRIE:    return @"LC_DYLD_EXPORTS_TRIE";
+    case LC_DYLD_CHAINED_FIXUPS:  return @"LC_DYLD_CHAINED_FIXUPS";
+    case LC_VERSION_MIN_TVOS:    return @"LC_VERSION_MIN_TVOS";
+    case LC_VERSION_MIN_WATCHOS: return @"LC_VERSION_MIN_WATCHOS";
+    case LC_NOTE:                 return @"LC_NOTE";
   }
 }
 
@@ -915,54 +940,60 @@ using namespace std;
   MATCH_STRUCT(mach_header,imageOffset);
   if (mach_header->cputype == CPU_TYPE_I386 || mach_header->cputype == CPU_TYPE_X86_64)
   {
-    MATCH_STRUCT(x86_thread_state,NSMaxRange(range))
-    
+    if (thread_command->cmdsize < 16)
+      [NSException raise:NSRangeException format:@"Truncated x86 thread state header"];
+    MATCH_STRUCT(MVX86ThreadState,NSMaxRange(range))
+    uint32_t stateBytes = MVX86ThreadState->tsh.flavor == 1 ? 64 :
+                          MVX86ThreadState->tsh.flavor == 4 ? 168 : 0;
+    if (stateBytes > thread_command->cmdsize - 16 || MVX86ThreadState->tsh.count < stateBytes / 4)
+      [NSException raise:NSRangeException format:@"Truncated x86 thread state"];
+
     [dataController read_uint32:range lastReadHex:&lastReadHex];
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"Flavor"
-                           :x86_thread_state->tsh.flavor == x86_THREAD_STATE32 ? @"x86_THREAD_STATE32" :
-                            x86_thread_state->tsh.flavor == x86_FLOAT_STATE32 ? @"x86_FLOAT_STATE32" :
-                            x86_thread_state->tsh.flavor == x86_EXCEPTION_STATE32 ? @"x86_EXCEPTION_STATE32" :
-                            x86_thread_state->tsh.flavor == x86_THREAD_STATE64 ? @"x86_THREAD_STATE64" :                                     
-                            x86_thread_state->tsh.flavor == x86_FLOAT_STATE64 ? @"x86_FLOAT_STATE64" :
-                            x86_thread_state->tsh.flavor == x86_EXCEPTION_STATE64 ? @"x86_EXCEPTION_STATE64" :
-                            x86_thread_state->tsh.flavor == x86_THREAD_STATE ? @"x86_THREAD_STATE" :
-                            x86_thread_state->tsh.flavor == x86_FLOAT_STATE ? @"x86_FLOAT_STATE" :
-                            x86_thread_state->tsh.flavor == x86_EXCEPTION_STATE ? @"x86_EXCEPTION_STATE" :
-                            x86_thread_state->tsh.flavor == x86_DEBUG_STATE32 ? @"x86_DEBUG_STATE32" :
-                            x86_thread_state->tsh.flavor == x86_DEBUG_STATE64 ? @"x86_DEBUG_STATE64" :
-                            x86_thread_state->tsh.flavor == x86_DEBUG_STATE ? @"x86_DEBUG_STATE" :
-                            x86_thread_state->tsh.flavor == THREAD_STATE_NONE ? @"THREAD_STATE_NONE" : @"???"];
+                           :MVX86ThreadState->tsh.flavor == 1 ? @"x86_THREAD_STATE32" :
+                            MVX86ThreadState->tsh.flavor == 2 ? @"x86_FLOAT_STATE32" :
+                            MVX86ThreadState->tsh.flavor == 3 ? @"x86_EXCEPTION_STATE32" :
+                            MVX86ThreadState->tsh.flavor == 4 ? @"x86_THREAD_STATE64" :
+                            MVX86ThreadState->tsh.flavor == 5 ? @"x86_FLOAT_STATE64" :
+                            MVX86ThreadState->tsh.flavor == 6 ? @"x86_EXCEPTION_STATE64" :
+                            MVX86ThreadState->tsh.flavor == 7 ? @"x86_THREAD_STATE" :
+                            MVX86ThreadState->tsh.flavor == 8 ? @"x86_FLOAT_STATE" :
+                            MVX86ThreadState->tsh.flavor == 9 ? @"x86_EXCEPTION_STATE" :
+                            MVX86ThreadState->tsh.flavor == 10 ? @"x86_DEBUG_STATE32" :
+                            MVX86ThreadState->tsh.flavor == 11 ? @"x86_DEBUG_STATE64" :
+                            MVX86ThreadState->tsh.flavor == 12 ? @"x86_DEBUG_STATE" :
+                            MVX86ThreadState->tsh.flavor == 13 ? @"THREAD_STATE_NONE" : @"???"];
     
     [dataController read_uint32:range lastReadHex:&lastReadHex];
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
                            :lastReadHex
                            :@"Count"
-                           :[NSString stringWithFormat:@"%u", x86_thread_state->tsh.count]];
+                           :[NSString stringWithFormat:@"%u", MVX86ThreadState->tsh.count]];
     
     [node.details setAttributes:MVUnderlineAttributeName,@"YES",nil];
     
-    if (x86_thread_state->tsh.flavor == x86_THREAD_STATE32)
+    if (MVX86ThreadState->tsh.flavor == 1)
     {
-      entryPoint = x86_thread_state->uts.ts32.__eip;
+      entryPoint = MVX86ThreadState->uts.ts32.__eip;
 
-      NSDictionary * stateDict = @{@"eax":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__eax],
-                                   @"ebx":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__ebx],
-                                   @"ecx":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__ecx],
-                                   @"edx":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__edx],
-                                   @"edi":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__edi],
-                                   @"esi":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__esi],
-                                   @"ebp":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__ebp],
-                                   @"esp":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__esp],
-                                   @"ss":     [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__ss],
-                                   @"eflags": [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__eflags],
-                                   @"eip":    [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__eip],
-                                   @"cs":     [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__cs],
-                                   @"ds":     [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__ds],
-                                   @"es":     [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__es],
-                                   @"fs":     [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__fs],
-                                   @"gs":     [NSString stringWithFormat:@"%u",x86_thread_state->uts.ts32.__gs]};
+      NSDictionary * stateDict = @{@"eax":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__eax],
+                                   @"ebx":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__ebx],
+                                   @"ecx":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__ecx],
+                                   @"edx":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__edx],
+                                   @"edi":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__edi],
+                                   @"esi":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__esi],
+                                   @"ebp":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__ebp],
+                                   @"esp":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__esp],
+                                   @"ss":     [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__ss],
+                                   @"eflags": [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__eflags],
+                                   @"eip":    [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__eip],
+                                   @"cs":     [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__cs],
+                                   @"ds":     [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__ds],
+                                   @"es":     [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__es],
+                                   @"fs":     [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__fs],
+                                   @"gs":     [NSString stringWithFormat:@"%u",MVX86ThreadState->uts.ts32.__gs]};
       
       for (id key in @[@"eax",@"ebx",@"ecx",@"edx",
                       @"edi",@"esi",@"ebp",@"esp",
@@ -976,31 +1007,31 @@ using namespace std;
                                :stateDict[key]];
       }
     }
-    else if (x86_thread_state->tsh.flavor == x86_THREAD_STATE64)
+    else if (MVX86ThreadState->tsh.flavor == 4)
     {
-      entryPoint = x86_thread_state->uts.ts64.__rip;
+      entryPoint = MVX86ThreadState->uts.ts64.__rip;
       
-      NSDictionary * stateDict = @{@"rax":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rax],
-                                   @"rbx":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rbx],
-                                   @"rcx":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rcx],
-                                   @"rdx":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rdx],
-                                   @"rdi":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rdi],
-                                   @"rsi":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rsi],
-                                   @"rbp":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rbp],
-                                   @"rsp":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rsp],
-                                   @"r8":     [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r8],
-                                   @"r9":     [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r9],
-                                   @"r10":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r10],
-                                   @"r11":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r11],
-                                   @"r12":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r12],
-                                   @"r13":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r13],
-                                   @"r14":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r14],
-                                   @"r15":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__r15],
-                                   @"rip":    [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rip],
-                                   @"rflags": [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__rflags],
-                                   @"cs":     [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__cs],
-                                   @"fs":     [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__fs],
-                                   @"gs":     [NSString stringWithFormat:@"%qu",x86_thread_state->uts.ts64.__gs]};
+      NSDictionary * stateDict = @{@"rax":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rax],
+                                   @"rbx":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rbx],
+                                   @"rcx":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rcx],
+                                   @"rdx":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rdx],
+                                   @"rdi":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rdi],
+                                   @"rsi":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rsi],
+                                   @"rbp":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rbp],
+                                   @"rsp":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rsp],
+                                   @"r8":     [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r8],
+                                   @"r9":     [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r9],
+                                   @"r10":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r10],
+                                   @"r11":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r11],
+                                   @"r12":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r12],
+                                   @"r13":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r13],
+                                   @"r14":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r14],
+                                   @"r15":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__r15],
+                                   @"rip":    [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rip],
+                                   @"rflags": [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__rflags],
+                                   @"cs":     [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__cs],
+                                   @"fs":     [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__fs],
+                                   @"gs":     [NSString stringWithFormat:@"%qu",MVX86ThreadState->uts.ts64.__gs]};
       
       for (id key in @[@"rax",@"rbx",@"rcx",@"rdx",@"rdi",@"rsi",@"rbp",@"rsp",
                       @"r8",@"r9", @"r10", @"r11", @"r12", @"r13", @"r14", @"r15", 
@@ -1109,12 +1140,32 @@ using namespace std;
                                :stateDict[key]];
       }
     }
-    else if (mach_header->cputype == CPU_TYPE_ARM64)
+  }
+  else if (mach_header->cputype == CPU_TYPE_ARM64)
+  {
+    if (thread_command->cmdsize < 16)
+      [NSException raise:NSRangeException format:@"Truncated ARM64 thread state header"];
+    uint32_t flavor = [dataController read_uint32:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location] :lastReadHex :@"Flavor"
+                           :flavor == 6 ? @"ARM_THREAD_STATE64" : [NSString stringWithFormat:@"%u", flavor]];
+    uint32_t count = [dataController read_uint32:range lastReadHex:&lastReadHex];
+    [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location] :lastReadHex :@"Count" :[NSString stringWithFormat:@"%u", count]];
+    if (flavor == 6)
     {
-#pragma message "TODO: ARM64"
+      if (count < 68 || thread_command->cmdsize < 16 + 68 * sizeof(uint32_t))
+        [NSException raise:NSRangeException format:@"Truncated ARM_THREAD_STATE64"];
+      for (NSUInteger i = 0; i < 33; ++i)
+      {
+        NSString *name = i < 29 ? [NSString stringWithFormat:@"x%lu", i] : @[@"fp", @"lr", @"sp", @"pc"][i - 29];
+        uint64_t value = [dataController read_uint64:range lastReadHex:&lastReadHex];
+        if (i == 32) entryPoint = value;
+        [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location] :lastReadHex :name :[NSString stringWithFormat:@"0x%llX", value]];
+      }
+      uint32_t cpsr = [dataController read_uint32:range lastReadHex:&lastReadHex];
+      [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location] :lastReadHex :@"cpsr" :[NSString stringWithFormat:@"0x%X", cpsr]];
     }
   }
-  
+
   return node;
 }
 
@@ -2225,6 +2276,8 @@ using namespace std;
     case LC_DATA_IN_CODE:
     case LC_DYLIB_CODE_SIGN_DRS:
     case LC_LINKER_OPTIMIZATION_HINT:
+    case LC_DYLD_EXPORTS_TRIE:
+    case LC_DYLD_CHAINED_FIXUPS:
     {
       MATCH_STRUCT(linkedit_data_command,location)
       node = [self createLCLinkeditDataNode:parent 
@@ -2324,8 +2377,40 @@ using namespace std;
                       dyld_info_command:dyld_info_command];
     } break;   
     
+    case LC_BUILD_VERSION:
+    {
+      if (length < sizeof(struct build_version_command))
+        [NSException raise:NSRangeException format:@"Truncated LC_BUILD_VERSION"];
+      MATCH_STRUCT(build_version_command, location)
+      if (build_version_command->ntools >
+          (length - sizeof(struct build_version_command)) / sizeof(struct build_tool_version))
+        [NSException raise:NSRangeException format:@"Truncated build tool versions"];
+      MVNodeSaver saver;
+      node = [parent insertChildWithDetails:caption location:location length:length saver:saver];
+      NSRange range = NSMakeRange(location, 0);
+      NSString *hex;
+      NSArray *labels = @[@"Command", @"Command Size", @"Platform", @"Minimum OS", @"SDK", @"Tool Count"];
+      for (NSUInteger i = 0; i < labels.count; ++i)
+      {
+        uint32_t value = [dataController read_uint32:range lastReadHex:&hex];
+        NSString *text = i == 0 ? [self getNameForCommand:value] :
+          (i == 3 || i == 4) ? [NSString stringWithFormat:@"%u.%u.%u", value >> 16, (value >> 8) & 255, value & 255] :
+          (i == 2 && value == PLATFORM_MACOS) ? @"macOS" : [NSString stringWithFormat:@"%u", value];
+        [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location] :hex :labels[i] :text];
+      }
+      for (uint32_t i = 0; i < build_version_command->ntools; ++i)
+      {
+        uint32_t tool = [dataController read_uint32:range lastReadHex:&hex];
+        [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location] :hex :@"Tool" :[NSString stringWithFormat:@"%u", tool]];
+        uint32_t version = [dataController read_uint32:range lastReadHex:&hex];
+        [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location] :hex :@"Tool Version"
+                               :[NSString stringWithFormat:@"%u.%u.%u", version >> 16, (version >> 8) & 255, version & 255]];
+      }
+    } break;
     case LC_VERSION_MIN_MACOSX:
     case LC_VERSION_MIN_IPHONEOS:
+    case LC_VERSION_MIN_TVOS:
+    case LC_VERSION_MIN_WATCHOS:
     {
       MATCH_STRUCT(version_min_command,location)
       node = [self createLCVersionMinNode:parent 

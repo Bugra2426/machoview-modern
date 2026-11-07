@@ -1,0 +1,137 @@
+name: Native macOS build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.runner }} / Apple Silicon
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            deployment: '15.0'
+          - runner: macos-26
+            deployment: '26.0'
+    # These standard hosted labels are ARM64 (not the Intel or large labels).
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify native runner and toolchain
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          test "$(sysctl -in sysctl.proc_translated 2>/dev/null || true)" != 1
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+          sw_vers
+          python3 -I scripts/check-project.py
+          plutil -lint Info.plist machoview.xcodeproj/project.pbxproj
+          bash otool_disasm/tests/run-tests.sh
+
+      - name: Set release version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version=2.5.0
+          if [[ "$REF_TYPE" == tag && "$REF_NAME" == v* ]]; then
+            [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+              printf 'Release tags must use vMAJOR.MINOR.PATCH\n' >&2
+              exit 1
+            }
+            version="${REF_NAME#v}"
+          fi
+          printf 'RELEASE_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
+
+      - name: Build native release
+        run: |
+          set -euo pipefail
+          xcodebuild -project machoview.xcodeproj -scheme MachOView \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            MACOSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
+            MARKETING_VERSION="$RELEASE_VERSION" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+            build 2>&1 | tee build.log
+
+      - name: Verify bundle and run native regression tests
+        run: |
+          set -euo pipefail
+          app=build/DerivedData/Build/Products/Release/MachOView.app
+          bash scripts/verify-app.sh "$app" arm64
+          # Timeout catches parser deadlocks; no Rosetta or Xcode lookup fallback.
+          python3 -I - "$app/Contents/MacOS/MachOView" <<'PY'
+          import subprocess, sys
+          subprocess.run([sys.argv[1], '--self-test'], check=True, timeout=120)
+          PY
+
+      - name: Package application
+        run: |
+          set -euo pipefail
+          mkdir -p build/artifacts
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/DerivedData/Build/Products/Release/MachOView.app \
+            build/artifacts/MachOView-${{ matrix.runner }}-arm64.zip
+          shasum -a 256 build/artifacts/*.zip > build/artifacts/SHA256SUMS.txt
+
+      - name: Upload native application
+        uses: actions/upload-artifact@v4
+        with:
+          name: MachOView-${{ matrix.runner }}-arm64
+          path: build/artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ matrix.runner }}
+          path: build.log
+          if-no-files-found: ignore
+
+  release:
+    name: Publish tagged release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download tested application ZIPs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: MachOView-*-arm64
+          path: release-artifacts
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          mkdir -p dist
+          find release-artifacts -name '*.zip' -exec cp {} dist/ \;
+          test "$(find dist -name '*.zip' | wc -l)" -eq 2
+          (cd dist && sha256sum *.zip > SHA256SUMS.txt)
+          gh release create "$RELEASE_TAG" dist/*.zip dist/SHA256SUMS.txt \
+            --verify-tag --title "MachOView $RELEASE_TAG" --generate-notes \
+            --notes 'Native Apple Silicon (arm64), optimized Release builds. Choose the macos-15 ZIP for macOS 15 or later; the macos-26 ZIP requires macOS 26 or later. No Rosetta required. These builds are ad-hoc signed, not Developer ID signed or Apple notarized. See README.md for installation and known parser limitations.'

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FEA100000000000000000001 /* disasm_output.c in Sources */ = {isa = PBXBuildFile; fileRef = FEA100000000000000000002 /* disasm_output.c */; };
 		3C0B08E71872CD0C00A22D6D /* ofile_print.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C0B08E61872CD0C00A22D6D /* ofile_print.c */; };
 		3C459C3F1945BF7F00D9B6A1 /* dyld_bind_info.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C459C3D1945BF7F00D9B6A1 /* dyld_bind_info.c */; };
 		3C459C401945BF7F00D9B6A1 /* dyld_bind_info.h in Headers */ = {isa = PBXBuildFile; fileRef = 3C459C3E1945BF7F00D9B6A1 /* dyld_bind_info.h */; };
@@ -31,7 +32,7 @@
 		3CD0B55519908DCC004DE568 /* print_objc2_32bit.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CD0B55319908DCC004DE568 /* print_objc2_32bit.c */; };
 		3CD0B55619908DCC004DE568 /* print_objc2_64bit.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CD0B55419908DCC004DE568 /* print_objc2_64bit.c */; };
 		3CD184EB1BFE8B9000D92E5D /* errors.h in Headers */ = {isa = PBXBuildFile; fileRef = 3CD184EA1BFE8B9000D92E5D /* errors.h */; };
-		3CDC216D16938243006CF053 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CDC215F16938243006CF053 /* main.c */; };
+		3CDC216D16938243006CF053 /* disasm_support.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CDC215F16938243006CF053 /* disasm_support.c */; };
 		3CDC217016938243006CF053 /* arm_disasm.h in Headers */ = {isa = PBXBuildFile; fileRef = 3CDC216216938243006CF053 /* arm_disasm.h */; };
 		3CDC217216938243006CF053 /* disasm.h in Headers */ = {isa = PBXBuildFile; fileRef = 3CDC216416938243006CF053 /* disasm.h */; };
 		3CDC217416938243006CF053 /* i386_disasm.c in Sources */ = {isa = PBXBuildFile; fileRef = 3CDC216616938243006CF053 /* i386_disasm.c */; };
@@ -55,6 +56,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FEA100000000000000000002 /* disasm_output.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = disasm_output.c; sourceTree = "<group>"; };
+		FEA100000000000000000003 /* disasm_output.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = disasm_output.h; sourceTree = "<group>"; };
 		3C0B08E61872CD0C00A22D6D /* ofile_print.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ofile_print.c; sourceTree = "<group>"; };
 		3C459C3D1945BF7F00D9B6A1 /* dyld_bind_info.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = dyld_bind_info.c; sourceTree = "<group>"; };
 		3C459C3E1945BF7F00D9B6A1 /* dyld_bind_info.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dyld_bind_info.h; sourceTree = "<group>"; };
@@ -79,7 +82,7 @@
 		3CD0B55419908DCC004DE568 /* print_objc2_64bit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = print_objc2_64bit.c; sourceTree = "<group>"; };
 		3CD184EA1BFE8B9000D92E5D /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = errors.h; path = stuff/errors.h; sourceTree = "<group>"; };
 		3CDC215316938207006CF053 /* libdisasm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libdisasm.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		3CDC215F16938243006CF053 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		3CDC215F16938243006CF053 /* disasm_support.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = disasm_support.c; sourceTree = "<group>"; };
 		3CDC216216938243006CF053 /* arm_disasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = arm_disasm.h; sourceTree = "<group>"; };
 		3CDC216416938243006CF053 /* disasm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = disasm.h; sourceTree = "<group>"; };
 		3CDC216616938243006CF053 /* i386_disasm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = i386_disasm.c; sourceTree = "<group>"; };
@@ -153,13 +156,15 @@
 				3CB184341C98E14F0036BE70 /* bytesex.c */,
 				3C459C411945BFA800D9B6A1 /* cxa_demangle.h */,
 				3CDC216416938243006CF053 /* disasm.h */,
+				FEA100000000000000000002 /* disasm_output.c */,
+				FEA100000000000000000003 /* disasm_output.h */,
 				3C459C3D1945BF7F00D9B6A1 /* dyld_bind_info.c */,
 				3C459C3E1945BF7F00D9B6A1 /* dyld_bind_info.h */,
 				3CB184381C98E26B0036BE70 /* fatals.c */,
 				3CDC216616938243006CF053 /* i386_disasm.c */,
 				3CDC216716938243006CF053 /* i386_disasm.h */,
 				3CDC216816938243006CF053 /* llvm.c */,
-				3CDC215F16938243006CF053 /* main.c */,
+				3CDC215F16938243006CF053 /* disasm_support.c */,
 				3C0B08E61872CD0C00A22D6D /* ofile_print.c */,
 				3CDC216A16938243006CF053 /* ofile_print.h */,
 				3CDC216B16938243006CF053 /* otool.h */,
@@ -253,12 +258,13 @@
 				3CB184351C98E14F0036BE70 /* bytesex.c in Sources */,
 				3CD0B55619908DCC004DE568 /* print_objc2_64bit.c in Sources */,
 				3CB184391C98E26B0036BE70 /* fatals.c in Sources */,
-				3CDC216D16938243006CF053 /* main.c in Sources */,
+				3CDC216D16938243006CF053 /* disasm_support.c in Sources */,
 				3CB184311C98E0900036BE70 /* allocate.c in Sources */,
 				3CB184331C98E1130036BE70 /* arm_disasm.c in Sources */,
 				3CD0B55519908DCC004DE568 /* print_objc2_32bit.c in Sources */,
 				3CDC217416938243006CF053 /* i386_disasm.c in Sources */,
 				3CDC217616938243006CF053 /* llvm.c in Sources */,
+				FEA100000000000000000001 /* disasm_output.c in Sources */,
 				3C459C3F1945BF7F00D9B6A1 /* dyld_bind_info.c in Sources */,
 				3CB184371C98E1A10036BE70 /* reloc.c in Sources */,
 				3C0B08E71872CD0C00A22D6D /* ofile_print.c in Sources */,
@@ -284,12 +290,13 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				STRIP_INSTALLED_PRODUCT = NO;
-				USER_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/../";
-				VALID_ARCHS = x86_64;
+				USER_HEADER_SEARCH_PATHS = "";
+				USE_HEADERMAP = NO;
 			};
 			name = Debug;
 		};
@@ -303,11 +310,12 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				SDKROOT = macosx;
 				STRIP_INSTALLED_PRODUCT = NO;
-				USER_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/../";
-				VALID_ARCHS = x86_64;
+				USER_HEADER_SEARCH_PATHS = "";
+				USE_HEADERMAP = NO;
 			};
 			name = Release;
 		};

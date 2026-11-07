@@ -39,6 +39,7 @@
 #include "stuff/reloc.h"
 #include "dyld_bind_info.h"
 #include "ofile_print.h"
+#include "disasm_output.h"
 
 extern char *oname;
 

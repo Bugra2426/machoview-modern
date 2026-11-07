@@ -34,20 +34,13 @@
     rootNode = node;
     imageOffset = node.dataRange.location;
     imageSize = node.dataRange.length;
-    backgroundThread = [[NSThread alloc] initWithTarget:self selector:@selector(doBackgroundTasks) object:nil];
-    
-    const char *tmp = [MVDocument temporaryDirectory].UTF8String;
-    char *swapFilePath = strdup(tmp);
-    if (mktemp(swapFilePath) == NULL)
-    {
-      NSLog(@"mktemp failed!");
-      free(swapFilePath);
-      return nil;
-    }
-
-    NSString *swapPath = [NSString stringWithFormat:@"%s.%@", swapFilePath, dataController.fileName.lastPathComponent];
-    free(swapFilePath);
-    archiver = [MVArchiver archiverWithPath:swapPath];
+    // Nested archive members must observe the same cancellation as their parent.
+    MVLayout * parentLayout = node.userInfo[MVLayoutUserInfoKey];
+    backgroundThread = parentLayout.backgroundThread ?: [[NSThread alloc] init];
+    NSString * swapPath = [[MVDocument temporaryDirectory]
+                          stringByAppendingPathComponent:[NSUUID UUID].UUIDString];
+    if (swapPath == nil || (archiver = [MVArchiver archiverWithPath:swapPath]) == nil)
+      [NSException raise:@"MVSwapFileError" format:@"Cannot create temporary swap file"];
   }
   return self;
 }
@@ -86,6 +79,40 @@
 //-----------------------------------------------------------------------------
 - (void)doMainTasks
 {
+}
+
+//-----------------------------------------------------------------------------
+- (void)startBackgroundTasks
+{
+  static NSOperationQueue * queue;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    queue = [[NSOperationQueue alloc] init];
+    queue.name = @"MachOView layout parsing";
+    queue.maxConcurrentOperationCount = 2;
+    queue.qualityOfService = NSQualityOfServiceUserInitiated;
+  });
+  // Keep backing data/root nodes alive until even cancelled operations finish.
+  MVDataController * controller = dataController;
+  [controller updateStatus:MVStatusTaskStarted];
+  [queue addOperationWithBlock:^{
+    @autoreleasepool
+    {
+      @try
+      {
+        if (!self->backgroundThread.cancelled) [self doBackgroundTasks];
+      }
+      @catch (NSException * exception)
+      {
+        [self printException:exception caption:@"Background processing"];
+      }
+      @finally
+      {
+        [self->archiver halt];
+        [controller updateStatus:MVStatusTaskTerminated];
+      }
+    }
+  }];
 }
 
 //-----------------------------------------------------------------------------

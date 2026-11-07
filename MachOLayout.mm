@@ -2239,6 +2239,7 @@ struct CompareSectionByName
   {
     if ((mach_header_64->cpusubtype & ~CPU_SUBTYPE_MASK) == CPU_SUBTYPE_ARM64_ALL)  [node.details appendRow:@"":@"":@"00000000":@"CPU_SUBTYPE_ARM64_ALL"];
     if ((mach_header_64->cpusubtype & ~CPU_SUBTYPE_MASK) == CPU_SUBTYPE_ARM64_V8)   [node.details appendRow:@"":@"":@"00000001":@"CPU_SUBTYPE_ARM64_V8"];
+    if ((mach_header_64->cpusubtype & ~CPU_SUBTYPE_MASK) == CPU_SUBTYPE_ARM64E)     [node.details appendRow:@"":@"":@"00000002":@"CPU_SUBTYPE_ARM64E"];
   }
 
   
@@ -2370,15 +2371,29 @@ struct CompareSectionByName
                                          ? sizeof(struct mach_header) 
                                          : sizeof(struct mach_header_64));
     
-    MVNode * commandsNode = [self createDataNode:rootNode 
+    NSUInteger fileLength = dataController.fileData.length;
+    uint64_t headerSize = fileOffset - imageOffset;
+    if (headerSize > imageSize || sizeofcmds > imageSize - headerSize ||
+        fileOffset > fileLength || sizeofcmds > fileLength - fileOffset)
+      [NSException raise:NSRangeException format:@"Load commands extend beyond the Mach-O image"];
+    uint64_t commandsEnd = fileOffset + sizeofcmds;
+    if (ncmds > sizeofcmds / sizeof(struct load_command))
+      [NSException raise:NSRangeException format:@"Invalid load command count"];
+
+    MVNode * commandsNode = [self createDataNode:rootNode
                                          caption:@"Load Commands"
                                         location:fileOffset
                                           length:sizeofcmds];
     
     for (uint32_t ncmd = 0; ncmd < ncmds; ++ncmd)
     {
+      if (fileOffset > commandsEnd || sizeof(struct load_command) > commandsEnd - fileOffset)
+        [NSException raise:NSRangeException format:@"Truncated load command header"];
       MATCH_STRUCT(load_command,fileOffset)
-      
+      if (load_command->cmdsize < sizeof(struct load_command) ||
+          load_command->cmdsize > commandsEnd - fileOffset)
+        [NSException raise:NSRangeException format:@"Invalid load command size"];
+
       // store the command for post-processing
       commands.push_back(load_command);
       
@@ -2573,6 +2588,11 @@ struct CompareSectionByName
   
   // start operations
   NSOperationQueue * oq = [[NSOperationQueue alloc] init];
+  oq.name = @"MachOView parsing";
+  oq.qualityOfService = NSQualityOfServiceUserInitiated;
+  // The phases share symbolNames and mutable relocation data. A dependency
+  // graph alone allowed exception/ObjC parsing to race on those containers.
+  oq.maxConcurrentOperationCount = 1;
 
   [dataController updateStatus:MVStatusTaskStarted];
   

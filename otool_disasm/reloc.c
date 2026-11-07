@@ -22,16 +22,23 @@
  */
 #include <mach/machine.h>
 #include <mach-o/reloc.h>
-#include <mach-o/m88k/reloc.h>
-#include <mach-o/ppc/reloc.h>
-#include <mach-o/i860/reloc.h>
-#include <mach-o/hppa/reloc.h>
-#include <mach-o/sparc/reloc.h>
+/* Historical object-format constants only. Use explicit paths rather than a
+ * repository-wide include path that would shadow the SDK's Mach host headers. */
+#include "../mach-o/m88k/reloc.h"
+#include "../mach-o/ppc/reloc.h"
+#include "../mach-o/i860/reloc.h"
+#include "../mach-o/hppa/reloc.h"
+#include "../mach-o/sparc/reloc.h"
 #include <mach-o/x86_64/reloc.h>
 #include <mach-o/arm/reloc.h>
 #include "stuff/bool.h"
 #include "stuff/errors.h"
 #include "stuff/reloc.h"
+
+/* Removed from current SDKs, but may occur in historical object files. */
+#ifndef CPU_TYPE_VEO
+#define CPU_TYPE_VEO ((cpu_type_t)255)
+#endif
 
 /*
  * reloc_pair_r_type() returns the PAIR constant for the specific cputype for

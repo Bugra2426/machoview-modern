@@ -36,7 +36,14 @@
   IBOutlet NSSegmentedControl *   offsetModeSwitch;
   IBOutlet NSButton *             stopButton;
   MVDataController *              dataController;
-  int32_t                         threadCount;
+  NSInteger                       threadCount;
+  NSLock *                        notificationLock;
+  NSMutableSet *                  pendingTreeNodes;
+  BOOL                            treeRefreshPending;
+  BOOL                            fullTreeRefreshPending;
+  BOOL                            tableRefreshPending;
+  BOOL                            statusRefreshPending;
+  BOOL                            closed;
 }
 @property (nonatomic,readonly) MVDataController * dataController;
 

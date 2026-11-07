@@ -14,6 +14,7 @@
 #include "ofile_print.h"
 #include "arm64_disasm.h"
 #include "cxa_demangle.h"
+#include "disasm_output.h"
 
 static struct disassemble_info {
   /* otool(1) specific stuff */
@@ -45,8 +46,8 @@ static struct disassemble_info {
   uint32_t nindirect_symbols;
   char *sect;
   uint32_t left;
-  uint32_t addr;
-  uint32_t sect_addr;
+  uint64_t addr;
+  uint64_t sect_addr;
   uint64_t adrp_addr;
   uint32_t adrp_inst;
   char *object_addr;
@@ -756,10 +757,12 @@ cpu_subtype_t cpusubtype)
     char *mcpu_default;
 
 	mcpu_default = mcpu;
-	switch(cpusubtype){
+	/* Capability flags are not part of the subtype. */
+	switch(cpusubtype & ~CPU_SUBTYPE_MASK){
 	case CPU_SUBTYPE_ARM64_ALL:
+	case CPU_SUBTYPE_ARM64E:
 	    if(*mcpu_default == '\0')
-		mcpu_default = "cyclone";
+		mcpu_default = "apple-m1";
 	    break;
 	}
 
@@ -791,7 +794,7 @@ arm64_disassemble(
 char *sect,
 uint32_t left,
 uint64_t addr,
-uint32_t sect_addr,
+uint64_t sect_addr,
 enum byte_sex object_byte_sex,
 struct relocation_info *relocs,
 uint32_t nrelocs,
@@ -819,8 +822,8 @@ LLVMDisasmContextRef dc)
 {
     enum byte_sex host_byte_sex;
     enum bool swapped;
-    uint32_t opcode;
-    uint32_t sect_offset;
+    uint32_t opcode = 0;
+    uint64_t sect_offset;
     char dst[4096];
 
 	host_byte_sex = get_host_byte_sex();

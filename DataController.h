@@ -89,7 +89,6 @@ struct MVNodeSaver;
   NSMutableArray *      displayRows;  // array of MVRow * (rows filtered by search criteria)
   MVArchiver *          __weak archiver;
   FILE *                swapFile;
-  NSLock *              tableLock;
 }
 
 @property (nonatomic)   FILE * swapFile;
@@ -101,6 +100,7 @@ struct MVNodeSaver;
 - (void)                appendRow:(id)col0 :(id)col1 :(id)col2 :(id)col3;
 - (void)                insertRowWithOffset:(uint64_t)offset :(id)col0 :(id)col1 :(id)col2 :(id)col3;
 - (void)                updateCellContentTo:(id)object atRow:(NSUInteger)rowIndex andCol:(NSUInteger)colIndex;
+- (void)                updateDisplayedCellContentTo:(NSString *)string atRow:(NSUInteger)rowIndex andCol:(NSUInteger)colIndex;
 
 - (NSUInteger)          rowCount;
 - (void)                setAttributes:(NSString *)firstArg, ... NS_REQUIRES_NIL_TERMINATION;
@@ -121,12 +121,12 @@ struct MVNodeSaver;
   uint64_t              detailsOffset;
 }
 
-@property (nonatomic)           NSString *            caption;
+@property (atomic)              NSString *            caption;
 @property (nonatomic,weak)      MVNode *              parent;
-@property (nonatomic)           NSRange               dataRange;
-@property (nonatomic)           MVTable *             details;
+@property (atomic)              NSRange               dataRange;
+@property (atomic)              MVTable *             details;
 @property (nonatomic)           NSMutableDictionary * userInfo;
-@property (nonatomic)           uint64_t              detailsOffset;
+@property (atomic)              uint64_t              detailsOffset;
 
 - (NSUInteger)          numberOfChildren;
 - (MVNode *)            childAtIndex:(NSUInteger)n;
@@ -159,7 +159,7 @@ struct MVNodeSaver;
 @property (nonatomic)                   NSMutableData * realData;
 @property (nonatomic,readonly)          NSArray *       layouts;
 @property (nonatomic,readonly)          MVNode *        rootNode;
-@property (nonatomic,weak)              MVNode *        selectedNode;
+@property (atomic,weak)                 MVNode *        selectedNode;
 @property (nonatomic,readonly)          NSLock *        treeLock;
 
 -(NSString *)           getMachine:(cpu_type_t)cputype;
@@ -176,9 +176,10 @@ struct MVNodeSaver;
 @interface MVArchiver : NSObject
 {
   NSString *            swapPath;
-  NSMutableArray *      objectsToSave; // conforms MVSerializing
-  NSThread *            saverThread;
-  NSLock *              saverLock;
+  NSMutableOrderedSet * objectsToSave; // identity-preserving, deduplicated pending objects
+  NSRecursiveLock *     saverLock;     // protects pending work AND the live serialized model
+  BOOL                  saveScheduled;
+  BOOL                  saveFailed;
 }
 
 @property (nonatomic,readonly)  NSString * swapPath;
@@ -188,6 +189,9 @@ struct MVNodeSaver;
 -(void) suspend;
 -(void) resume;
 -(void) halt;
+// Synchronous drain, for shutdown/tests; serialized with all model access.
+-(void) flush;
+-(BOOL) canArchive;
 
 @end
 

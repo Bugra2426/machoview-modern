@@ -70,6 +70,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "ofile_print.h"
 #include "i386_disasm.h"
 #include "cxa_demangle.h"
+#include "disasm_output.h"
 
 #define MAX_MNEMONIC	16	/* Maximum number of chars per mnemonic, plus a byte for '\0' */
 #define MAX_RESULT	14	/* Maximum number of char in a register */

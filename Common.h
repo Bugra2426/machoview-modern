@@ -11,8 +11,6 @@
 //#define MV_NO_ARCHIVER
 //#define MV_STATISTICS
 
-extern NSCondition * pipeCondition;
-extern int32_t numIOThread;
 extern int64_t nrow_total;  // number of rows (loaded and empty)
 extern int64_t nrow_loaded; // number of loaded rows
 

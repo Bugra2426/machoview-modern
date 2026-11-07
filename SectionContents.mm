@@ -18,6 +18,37 @@
 
 using namespace std;
 
+// Capture decoder output in memory, not by redirecting process-wide stdout.
+// The decoder's legacy symbol callbacks still require the section-level lock.
+struct MVDisassemblyResources
+{
+  char *buffer = nullptr;
+  size_t size = 0;
+  FILE *stream;
+  FILE *previous;
+  LLVMDisasmContextRef arm = nullptr, thumb = nullptr, i386 = nullptr;
+  LLVMDisasmContextRef x86_64 = nullptr, arm64 = nullptr;
+  vector<struct symbol> symbols;
+
+  MVDisassemblyResources() : stream(open_memstream(&buffer, &size)), previous(nullptr)
+  {
+    if (!stream) [NSException raise:NSMallocException format:@"Cannot capture disassembly output"];
+    previous = disasm_set_output(stream);
+  }
+  ~MVDisassemblyResources()
+  {
+    disasm_set_output(previous);
+    fclose(stream);
+    free(buffer);
+    if (arm) delete_arm_llvm_disassembler(arm);
+    if (thumb) delete_thumb_llvm_disassembler(thumb);
+    if (i386) delete_i386_llvm_disassembler(i386);
+    if (x86_64) delete_x86_64_llvm_disassembler(x86_64);
+    if (arm64) delete_arm64_llvm_disassembler(arm64);
+    for (auto &symbol : symbols) free(symbol.name);
+  }
+};
+
 //============================================================================
 @implementation MachOLayout (SectionContents)
 
@@ -156,12 +187,16 @@ using namespace std;
         literalStr = [NSString stringWithFormat:@"%.16g", num];
       } break;
         
-      default:
-      case sizeof(long double): 
+      case 16:
       {
-        long double num = *(long double *)data.bytes; 
-        literalStr = [NSString stringWithFormat:@"%.16Lg", num];
+        // S_16BYTE_LITERALS is a file format width, not sizeof(long double).
+        // Apple Silicon long double is 8 bytes; don't interpret x86 extended
+        // precision or arbitrary 128-bit literals using the host's ABI.
+        literalStr = [NSString stringWithFormat:@"0x%@ (128-bit literal)", lastReadHex];
       } break;
+      default:
+        literalStr = [NSString stringWithFormat:@"0x%@", lastReadHex];
+        break;
     }
     
     [node.details appendRow:[NSString stringWithFormat:@"%.8lX", range.location]
@@ -555,6 +590,18 @@ static AsmFootPrint const fastStubHelperHelperARM =
     return node;
   }
   
+  // Keep the legacy decoder's shared callback state isolated between documents.
+  @synchronized([MachOLayout class])
+  {
+  // Snapshot the preference once per section; the UI never mutates decoder
+  // globals while background instructions are being decoded.
+  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+  qflag = [defaults objectForKey:@"UseLLVMDisassembler"] == nil ||
+          [defaults boolForKey:@"UseLLVMDisassembler"];
+  NSUInteger fileLength = dataController.fileData.length;
+  if (location > fileLength || length > fileLength - location || length > UINT32_MAX)
+    [NSException raise:NSRangeException format:@"Code section is outside the file or too large"];
+
   // prepare disassembler params
   //===========================================================================
   MATCH_STRUCT(mach_header,imageOffset);
@@ -569,10 +616,21 @@ static AsmFootPrint const fastStubHelperHelperARM =
   struct nlist_64 *           ot_symbols64 = (symbols_64.empty() ? NULL : const_cast<struct nlist_64 *>(symbols_64[0]));
   uint32_t                    ot_nsymbols = (uint32_t)(self.is64bit == NO ? symbols.size() : symbols_64.size());
   char *                      ot_strings = (char *)strtab;
-  uint32_t                    ot_strings_size = (uint32_t)((char *)(dataController.fileData).bytes - strtab);
+  uint32_t                    ot_strings_size = 0;
+  for (const auto *command : commands)
+  {
+    if (command->cmd == LC_SYMTAB)
+    {
+      const auto *table = reinterpret_cast<const struct symtab_command *>(command);
+      if (imageOffset <= fileLength && table->stroff <= fileLength - imageOffset &&
+          table->strsize <= fileLength - imageOffset - table->stroff)
+        ot_strings_size = table->strsize;
+      break;
+    }
+  }
   uint32_t *                  ot_indirect_symbols = (isymbols.empty() ? NULL : const_cast<uint32_t *>(isymbols[0]));
   uint32_t                    ot_nindirect_symbols = (uint32_t)isymbols.size();
-  struct load_command *       ot_load_commands = (struct load_command *)(commands[0]);
+  struct load_command *       ot_load_commands = commands.empty() ? nullptr : (struct load_command *)(commands[0]);
   uint32_t                    ot_ncmds = (uint32_t)commands.size();
   uint32_t                    ot_sizeofcmds = mach_header->sizeofcmds;
   cpu_type_t                  ot_cputype = mach_header->cputype;
@@ -590,59 +648,45 @@ static AsmFootPrint const fastStubHelperHelperARM =
   uint64_t                    ot_ndbi = 0;
   
 
-  LLVMDisasmContextRef        ot_arm_dc = NULL;
-  LLVMDisasmContextRef        ot_thumb_dc = NULL;
-  LLVMDisasmContextRef        ot_i386_dc = NULL;
-  LLVMDisasmContextRef        ot_x86_64_dc = NULL;
-  LLVMDisasmContextRef        ot_arm64_dc = NULL;
+  MVDisassemblyResources output;
+  LLVMDisasmContextRef &ot_arm_dc = output.arm;
+  LLVMDisasmContextRef &ot_thumb_dc = output.thumb;
+  LLVMDisasmContextRef &ot_i386_dc = output.i386;
+  LLVMDisasmContextRef &ot_x86_64_dc = output.x86_64;
+  LLVMDisasmContextRef &ot_arm64_dc = output.arm64;
   
   
   //===========================================================================
   if((qflag || gflag) && mach_header->cputype == CPU_TYPE_ARM)
   {
-    @synchronized([self class])
-    {
-      ot_arm_dc = create_arm_llvm_disassembler(mach_header->cpusubtype);
-      NSAssert(ot_arm_dc, @"can't create arm llvm disassembler");
-    }
-    @synchronized([self class])
-    {
-      ot_thumb_dc = create_thumb_llvm_disassembler(mach_header->cpusubtype);
-      NSAssert(ot_thumb_dc, @"can't create thumb llvm disassembler");
-    }
-    llvm_disasm_set_options(ot_arm_dc,    LLVMDisassembler_Option_PrintImmHex);
-    llvm_disasm_set_options(ot_thumb_dc,  LLVMDisassembler_Option_PrintImmHex);
+    ot_arm_dc = create_arm_llvm_disassembler(mach_header->cpusubtype);
+    ot_thumb_dc = create_thumb_llvm_disassembler(mach_header->cpusubtype);
+    llvm_disasm_set_options(ot_arm_dc, LLVMDisassembler_Option_PrintImmHex);
+    llvm_disasm_set_options(ot_thumb_dc, LLVMDisassembler_Option_PrintImmHex);
   }
-  
-  if((qflag || gflag) && mach_header->cputype == CPU_TYPE_ARM64)
+  if(mach_header->cputype == CPU_TYPE_ARM64)
   {
-    @synchronized([self class])
-    {
-      ot_arm64_dc = create_arm64_llvm_disassembler(mach_header->cpusubtype);
-      NSAssert(ot_arm64_dc, @"can't create arm64 llvm disassembler");
-    }
-    llvm_disasm_set_options(ot_arm64_dc,  LLVMDisassembler_Option_PrintImmHex);
+    ot_arm64_dc = create_arm64_llvm_disassembler(mach_header->cpusubtype);
+    llvm_disasm_set_options(ot_arm64_dc, LLVMDisassembler_Option_PrintImmHex);
   }
-  
   if((qflag || gflag) && mach_header->cputype == CPU_TYPE_I386)
   {
-    @synchronized([self class])
-    {
-      ot_i386_dc = create_i386_llvm_disassembler();
-      NSAssert(ot_i386_dc, @"can't create i386 llvm disassembler");
-    }
-    llvm_disasm_set_options(ot_i386_dc,   LLVMDisassembler_Option_PrintImmHex);
+    ot_i386_dc = create_i386_llvm_disassembler();
+    llvm_disasm_set_options(ot_i386_dc, LLVMDisassembler_Option_PrintImmHex);
   }
-  
   if((qflag || gflag) && mach_header->cputype == CPU_TYPE_X86_64)
   {
-    @synchronized([self class])
-    {
-      ot_x86_64_dc = create_x86_64_llvm_disassembler();
-      NSAssert(ot_x86_64_dc, @"can't create x86_64 llvm disassembler");
-    }
+    ot_x86_64_dc = create_x86_64_llvm_disassembler();
     llvm_disasm_set_options(ot_x86_64_dc, LLVMDisassembler_Option_PrintImmHex);
   }
+  // A damaged/missing backend must not abort Debug builds either. The C
+  // decoders handle NULL contexts by showing raw bytes instead of assembly.
+  if ((mach_header->cputype == CPU_TYPE_ARM64 && !ot_arm64_dc) ||
+      ((qflag || gflag) &&
+       ((mach_header->cputype == CPU_TYPE_ARM && (!ot_arm_dc || !ot_thumb_dc)) ||
+        (mach_header->cputype == CPU_TYPE_I386 && !ot_i386_dc) ||
+        (mach_header->cputype == CPU_TYPE_X86_64 && !ot_x86_64_dc))))
+    [node.details appendRow:@"":@"":@"LLVM backend unavailable":@"Showing raw instructions"];
   
   if(mach_header->cputype == CPU_TYPE_ARM &&
      (mach_header->cpusubtype == CPU_SUBTYPE_ARM_V7 ||
@@ -697,7 +741,7 @@ static AsmFootPrint const fastStubHelperHelperARM =
   
   //===========================================================================
   /* create aligned, sorted symbol entries */
-  vector<struct symbol> sorted_symbols;
+  vector<struct symbol> &sorted_symbols = output.symbols;
 
   NSEnumerator * enumerator = [symbolNames keyEnumerator];
   id key;
@@ -720,10 +764,11 @@ static AsmFootPrint const fastStubHelperHelperARM =
     sorted_symbols.push_back(symbol);
   }
   
-  qsort(&sorted_symbols[0], sorted_symbols.size(), sizeof(struct symbol),
-        (int (*)(const void *, const void *))sym_compare);
+  if (sorted_symbols.size() > 1)
+    qsort(sorted_symbols.data(), sorted_symbols.size(), sizeof(struct symbol),
+          (int (*)(const void *, const void *))sym_compare);
 
-  struct symbol *           ot_sorted_symbols = &sorted_symbols[0];
+  struct symbol *           ot_sorted_symbols = sorted_symbols.data();
   uint32_t                  ot_nsorted_symbols = (uint32_t)sorted_symbols.size();
   
   //===========================================================================
@@ -755,32 +800,14 @@ static AsmFootPrint const fastStubHelperHelperARM =
       break;
     }
     
-    // pipes makes us to run disassembling exclusively on a single thread
-    [pipeCondition lock];
-    while (numIOThread > 0)
-    {
-      [pipeCondition wait];
-    }
-    
-    int pfdout[3]; // 0:read 1:write 2:stdout
-    if (pipe (pfdout) != 0)
-    {
-      [NSException raise:@"pipe" format:@"unable to create pipes"];
-    }
-    
-    // save standard output descriptor
-    pfdout[2] = dup(STDOUT_FILENO);
-    
-    // redirect
-    close(STDOUT_FILENO);
-    dup2 (pfdout[1], STDOUT_FILENO);
-    
-    // run disassembler line by line
-    setlinebuf(stdout);
-    
     NSUInteger nAsmLine = 0;
     do
     {
+      @autoreleasepool {
+      if (backgroundThread.cancelled) { ot_left = 0; break; }
+      // Reuse the memory stream allocation across instructions.
+      if (fseek(output.stream, 0, SEEK_SET) != 0)
+        [NSException raise:NSInternalInconsistencyException format:@"Cannot reset disassembly stream"];
       uint32_t parsed_bytes;
       
       try
@@ -864,7 +891,7 @@ static AsmFootPrint const fastStubHelperHelperARM =
                            ot_sect,
                            ot_left,
                            ot_addr,
-                           (uint32_t)ot_sect_addr,
+                           ot_sect_addr,
                            ot_object_byte_sex,
                            ot_relocs,
                            ot_nrelocs,
@@ -894,122 +921,60 @@ static AsmFootPrint const fastStubHelperHelperARM =
       }
       catch(...)
       {
-        // sometimes the disassembler crashes on encrypted text section
+        // Stop this section on a C++ decoder error; never spin at one address.
+        ot_left = 0;
         break;
       }
       
-      if (parsed_bytes == 0)
-        break;
-      
-      // read from pipe
-      char buf[0x1000], *pbuf = buf;
-      ssize_t lenbuf = read(pfdout[0], buf, sizeof(buf)-1);
-      buf[lenbuf] = '\0'; // terminate buffer
-      size_t field_start_pos = 0; // start position in buffer of the current field
-      
-      while (pbuf - buf < lenbuf)
+      if (parsed_bytes == 0 || parsed_bytes > ot_left)
       {
-        if (*pbuf == '\n') // newline or
-        {
-          *pbuf = '\0'; // clear newline
-          
-          char const * symbol_name = guess_symbol(ot_addr,
-                                                  ot_sorted_symbols,
-                                                  ot_nsorted_symbols);
-          // print label if any
-          if (symbol_name)
-          {
-            // close previous block (if any)
-            if (symbolName)
-            {
-              [node.details setAttributesFromRowIndex:bookmark:MVMetaDataAttributeName,symbolName,nil];
-              [node.details setAttributes:MVUnderlineAttributeName,@"YES",nil];
-            }
-            
-            // start new block
-            bookmark = node.details.rowCount;
-            [node.details appendRow:@""
-                                   :@""
-                                   :[NSString stringWithFormat:@"%@:", (symbolName = NSSTRING(symbol_name))]
-                                   :@""];
-            
-            [node.details setAttributes:MVCellColorAttributeName,[NSColor orangeColor],nil];
-          }
-          
-          // print one line of asm
-          uint64_t fileOffset = (self.is64bit == NO ? [self RVAToFileOffset:(uint32_t)ot_addr] : [self RVA64ToFileOffset:ot_addr]);
-          NSRange range = NSMakeRange(fileOffset,0);
-          NSString * lastReadHex;
-          [dataController read_bytes:range length:parsed_bytes lastReadHex:&lastReadHex];
-          [node.details appendRow:[NSString stringWithFormat:@"%.8llX", fileOffset]
-                                 :lastReadHex
-                                 :NSSTRING(buf)
-                                 :@""];
-          
-          break; // stop processing after the first new line
-        }
-        else if (*pbuf == '\t')
-        {
-          // replace tabs with spaces in order to keep indention
-          size_t wsn = TAB_WIDTH - ((pbuf - buf - field_start_pos) % TAB_WIDTH);
-          *pbuf = ' '; // change the tab char to space
-          
-          // shift everything after the tab char right
-          for (char * p = buf + lenbuf; p > pbuf; --p)
-          {
-            *(p + wsn - 1) = *p;
-            *p = ' ';
-          }
-          
-          // adjust pointers
-          pbuf += wsn;
-          lenbuf += wsn;
-          
-          // store start position of the field for the next tab
-          field_start_pos = pbuf - buf;
-        }
-        else
-        {
-          ++pbuf;
-        }
+        ot_left = 0;
+        break;
       }
+      if (fflush(output.stream) != 0)
+        [NSException raise:NSInternalInconsistencyException format:@"Cannot read disassembly output"];
+
+      // Expand tabs without shifting past a fixed-size stack buffer.
+      string line;
+      size_t fieldStart = 0;
+      for (size_t i = 0; i < output.size && output.buffer[i] != '\n'; ++i)
+      {
+        if (output.buffer[i] == '\t')
+        {
+          line.append(TAB_WIDTH - ((line.size() - fieldStart) % TAB_WIDTH), ' ');
+          fieldStart = line.size();
+        }
+        else line.push_back(output.buffer[i]);
+      }
+      char const *symbol_name = guess_symbol(ot_addr, ot_sorted_symbols, ot_nsorted_symbols);
+      if (symbol_name)
+      {
+        if (symbolName)
+        {
+          [node.details setAttributesFromRowIndex:bookmark:MVMetaDataAttributeName,symbolName,nil];
+          [node.details setAttributes:MVUnderlineAttributeName,@"YES",nil];
+        }
+        bookmark = node.details.rowCount;
+        symbolName = NSSTRING(symbol_name);
+        [node.details appendRow:@"":@"":[NSString stringWithFormat:@"%@:", symbolName]:@""];
+        [node.details setAttributes:MVCellColorAttributeName,[NSColor orangeColor],nil];
+      }
+      uint64_t fileOffset = location + (ot_addr - ot_sect_addr);
+      NSRange range = NSMakeRange(fileOffset, 0);
+      NSString *lastReadHex;
+      [dataController read_bytes:range length:parsed_bytes lastReadHex:&lastReadHex];
+      NSString *assembly = [[NSString alloc] initWithBytes:line.data() length:line.size() encoding:NSUTF8StringEncoding];
+      [node.details appendRow:[NSString stringWithFormat:@"%.8llX", fileOffset]
+                             :lastReadHex :assembly ?: @"(undecodable instruction)" :@""];
       
       // synchronize disassembler
       ot_left -= parsed_bytes;
       ot_sect += parsed_bytes;
       ot_addr += parsed_bytes;
       
-      // inner loop forces to switch task after every 4096 lines of assembly
-    } while (ot_addr < ot_sect_addr + length && (++nAsmLine % 0x1000));
-    
-    // close read handle
-    close (pfdout[0]);
-    
-    // close write handle
-    close (pfdout[1]);
-    
-    // restore standard outputs
-    dup2 (pfdout[2], STDOUT_FILENO);
-    close (pfdout[2]);
-    
-    [pipeCondition unlock];
-    
-  } while (ot_addr < ot_sect_addr + length);
-  
-  // clean up symbols
-  for (vector<symbol>::iterator iter = sorted_symbols.begin();
-       iter != sorted_symbols.end();
-       ++iter)
-  {
-    free(iter->name);
-  }
-
-  // clean up LLVM disasm context
-  if (ot_arm_dc)     delete_arm_llvm_disassembler(ot_arm_dc);
-  if (ot_arm64_dc)   delete_arm64_llvm_disassembler(ot_arm64_dc);
-  if (ot_thumb_dc)   delete_thumb_llvm_disassembler(ot_thumb_dc);
-  if (ot_i386_dc)    delete_i386_llvm_disassembler(ot_i386_dc);
-  if (ot_x86_64_dc)  delete_x86_64_llvm_disassembler(ot_x86_64_dc);
+      } // autoreleasepool: bound temporary allocations on large code sections
+    } while (ot_left > 0 && (++nAsmLine % 0x1000));
+  } while (ot_left > 0);
 
   // close last block
   if (symbolName)
@@ -1018,6 +983,7 @@ static AsmFootPrint const fastStubHelperHelperARM =
     [node.details setAttributes:MVUnderlineAttributeName,@"YES",nil];
   }
   
+  } // synchronized decoder state
   return node;
 }
 

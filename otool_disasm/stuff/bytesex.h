@@ -35,6 +35,9 @@
 
 #include <mach-o/fat.h>
 #include <mach-o/loader.h>
+/* Not used by the bundled instruction disassembler. Do not import legacy
+ * host thread-state headers into a current SDK build. */
+#ifdef OTOOL_LEGACY_THREAD_STATES
 #include <mach/m68k/thread_status.h>
 #undef MACHINE_THREAD_STATE	/* need to undef these to avoid warnings */
 #undef MACHINE_THREAD_STATE_COUNT
@@ -51,11 +54,73 @@
 #include <mach/hppa/thread_status.h>
 #include <mach/sparc/thread_status.h>
 #include <mach/arm/thread_status.h>
+#endif /* OTOOL_LEGACY_THREAD_STATES */
 #include <mach-o/nlist.h>
 #include <mach-o/reloc.h>
 #include <mach-o/ranlib.h>
 #include <xar/xar.h>
 #include "stuff/bool.h"
+
+/* These cctools helpers use a different byte-order enum from the SDK's
+ * mach-o/swap.h. Give private definitions unique linker names so compiling
+ * directly into the app cannot interpose its calls to the system swap APIs. */
+#define SWAP_LONG_LONG otool_SWAP_LONG_LONG
+#define SWAP_FLOAT otool_SWAP_FLOAT
+#define SWAP_DOUBLE otool_SWAP_DOUBLE
+#define get_host_byte_sex otool_get_host_byte_sex
+#define swap_fat_header otool_swap_fat_header
+#define swap_fat_arch otool_swap_fat_arch
+#define swap_fat_arch_64 otool_swap_fat_arch_64
+#define swap_mach_header otool_swap_mach_header
+#define swap_mach_header_64 otool_swap_mach_header_64
+#define swap_load_command otool_swap_load_command
+#define swap_segment_command otool_swap_segment_command
+#define swap_segment_command_64 otool_swap_segment_command_64
+#define swap_section otool_swap_section
+#define swap_section_64 otool_swap_section_64
+#define swap_symtab_command otool_swap_symtab_command
+#define swap_dysymtab_command otool_swap_dysymtab_command
+#define swap_symseg_command otool_swap_symseg_command
+#define swap_fvmlib_command otool_swap_fvmlib_command
+#define swap_dylib_command otool_swap_dylib_command
+#define swap_sub_framework_command otool_swap_sub_framework_command
+#define swap_sub_umbrella_command otool_swap_sub_umbrella_command
+#define swap_sub_library_command otool_swap_sub_library_command
+#define swap_sub_client_command otool_swap_sub_client_command
+#define swap_prebound_dylib_command otool_swap_prebound_dylib_command
+#define swap_dylinker_command otool_swap_dylinker_command
+#define swap_fvmfile_command otool_swap_fvmfile_command
+#define swap_thread_command otool_swap_thread_command
+#define swap_ident_command otool_swap_ident_command
+#define swap_routines_command otool_swap_routines_command
+#define swap_routines_command_64 otool_swap_routines_command_64
+#define swap_twolevel_hints_command otool_swap_twolevel_hints_command
+#define swap_prebind_cksum_command otool_swap_prebind_cksum_command
+#define swap_uuid_command otool_swap_uuid_command
+#define swap_linkedit_data_command otool_swap_linkedit_data_command
+#define swap_version_min_command otool_swap_version_min_command
+#define swap_rpath_command otool_swap_rpath_command
+#define swap_encryption_command otool_swap_encryption_command
+#define swap_encryption_command_64 otool_swap_encryption_command_64
+#define swap_linker_option_command otool_swap_linker_option_command
+#define swap_dyld_info_command otool_swap_dyld_info_command
+#define swap_entry_point_command otool_swap_entry_point_command
+#define swap_source_version_command otool_swap_source_version_command
+#define swap_nlist otool_swap_nlist
+#define swap_nlist_64 otool_swap_nlist_64
+#define swap_ranlib otool_swap_ranlib
+#define swap_ranlib_64 otool_swap_ranlib_64
+#define swap_relocation_info otool_swap_relocation_info
+#define swap_indirect_symbols otool_swap_indirect_symbols
+#define swap_dylib_reference otool_swap_dylib_reference
+#define swap_dylib_module otool_swap_dylib_module
+#define swap_dylib_module_64 otool_swap_dylib_module_64
+#define swap_dylib_table_of_contents otool_swap_dylib_table_of_contents
+#define swap_twolevel_hint otool_swap_twolevel_hint
+#define swap_data_in_code_entry otool_swap_data_in_code_entry
+#define swap_xar_header otool_swap_xar_header
+#define swap_object_headers otool_swap_object_headers
+#define get_toc_byte_sex otool_get_toc_byte_sex
 
 enum byte_sex {
     UNKNOWN_BYTE_SEX,
@@ -185,6 +250,7 @@ __private_extern__ void swap_thread_command(
     struct thread_command *ut,
     enum byte_sex target_byte_sex);
 
+#ifdef OTOOL_LEGACY_THREAD_STATES
 __private_extern__ void swap_m68k_thread_state_regs(
     struct m68k_thread_state_regs *cpu,
     enum byte_sex target_byte_sex);
@@ -316,6 +382,8 @@ __private_extern__ void swap_arm_thread_state_t(
 __private_extern__ void swap_arm_thread_state64_t(
     arm_thread_state64_t *cpu,
     enum byte_sex target_byte_sex);
+
+#endif /* OTOOL_LEGACY_THREAD_STATES */
 
 __private_extern__ void swap_ident_command(
     struct ident_command *id_cmd,

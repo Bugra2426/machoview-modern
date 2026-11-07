@@ -22,7 +22,7 @@
   MVDataController *    __weak dataController;
   uint64_t              imageOffset;  // absolute physical offset of the image in binary
   uint64_t              imageSize;    // size of the image corresponds to this layout
-  NSThread *            backgroundThread;
+  NSThread *            backgroundThread; // cancellation token; work runs on a bounded queue
   MVArchiver *          archiver;
 }
 
@@ -37,6 +37,7 @@
 - (BOOL)                is64bit;
 - (void)                doMainTasks;
 - (void)                doBackgroundTasks;
+- (void)                startBackgroundTasks;
 - (NSString *)          convertToRVA: (NSString *)offsetStr;
 - (MVNode *)            findNodeByUserInfo:(NSDictionary *)userInfo;
 

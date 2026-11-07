@@ -116,41 +116,22 @@ int64_t nrow_loaded; // number of loaded rows
       free(readbuffer);
       return;
     }
-    /* dump buffer contents to temporary file to use the NSDocument model */
-    const char *tmp = [MVDocument temporaryDirectory].UTF8String;
-    char *dumpFilePath = (char*)malloc(strlen(tmp)+1);
-    if (dumpFilePath == NULL)
+    NSData * dump = [NSData dataWithBytesNoCopy:readbuffer length:(NSUInteger)imagesize freeWhenDone:YES];
+    NSString * path = [[MVDocument temporaryDirectory] stringByAppendingPathComponent:[NSUUID UUID].UUIDString];
+    if (path == nil) return;
+    NSURL * url = [NSURL fileURLWithPath:path];
+    NSError * error = nil;
+    if (![dump writeToURL:url options:NSDataWritingAtomic error:&error])
     {
-      NSLog(@"Can't allocate mem for temp filename path!");
-      free(readbuffer);
+      [NSApp presentError:error];
       return;
     }
-    strcpy(dumpFilePath, tmp);
-    int outputFile = 0;
-    if ( (outputFile = mkstemp(dumpFilePath)) == -1 )
-    {
-      NSLog(@"mkstemp failed!");
-      free(dumpFilePath);
-      free(readbuffer);
-      return;
-    }
-    
-    if (write(outputFile, readbuffer, imagesize) == -1)
-    {
-      NSLog(@"[ERROR] Write error at %s occurred!\n", dumpFilePath);
-      free(dumpFilePath);
-      free(readbuffer);
-      return;
-    }
-    NSLog(@"\n[OK] Full binary dumped to %s!\n\n", dumpFilePath);
-    close(outputFile);
-    
-    [self application:NSApp openFile:@(dumpFilePath)];
-    /* remove temporary dump file, not required anymore */
-    NSFileManager * fileManager = [NSFileManager defaultManager];
-    [fileManager removeItemAtPath:@(dumpFilePath) error:NULL];
-    free(dumpFilePath);
-    free(readbuffer);
+    [[NSDocumentController sharedDocumentController] openDocumentWithContentsOfURL:url display:YES
+      completionHandler:^(NSDocument * document, BOOL alreadyOpen, NSError * openError) {
+        // Opening is asynchronous: deleting immediately used to race the read.
+        [[NSFileManager defaultManager] removeItemAtURL:url error:NULL];
+        if (document == nil && openError != nil) [NSApp presentError:openError];
+      }];
   }
   else if (button == NSAlertSecondButtonReturn)
   {
@@ -215,8 +196,9 @@ int64_t nrow_loaded; // number of loaded rows
     return NO;
   }
   
-  uint32_t magic = *(uint32_t*)magicData.bytes;
-  if (magic == MH_MAGIC || magic == MH_MAGIC_64 || 
+  uint32_t magic;
+  memcpy(&magic, magicData.bytes, sizeof(magic));
+  if (magic == MH_MAGIC || magic == MH_MAGIC_64 || magic == MH_CIGAM || magic == MH_CIGAM_64 ||
       magic == FAT_CIGAM || magic == FAT_MAGIC)
   {
     return YES;
@@ -227,7 +209,7 @@ int64_t nrow_loaded; // number of loaded rows
     return NO;
   }
   
-  if (*(uint64_t*)magicData.bytes == *(uint64_t*)"!<arch>\n")
+  if (memcmp(magicData.bytes, "!<arch>\n", 8) == 0)
   {
     return YES;
   }
@@ -238,8 +220,6 @@ int64_t nrow_loaded; // number of loaded rows
 //----------------------------------------------------------------------------
 - (void)applicationWillFinishLaunching:(NSNotification *)aNotification
 {
-  BOOL isFirstMachOView = [self isOnlyRunningMachOView];
-  
   // disable the state resume feature, it's not very useful with MachOView
   if([[NSUserDefaults standardUserDefaults] objectForKey: @"ApplePersistenceIgnoreState"] == nil)
       [[NSUserDefaults standardUserDefaults] setBool: YES forKey:@"ApplePersistenceIgnoreState"];
@@ -249,38 +229,15 @@ int64_t nrow_loaded; // number of loaded rows
     qflag = [[NSUserDefaults standardUserDefaults] boolForKey:@"UseLLVMDisassembler"];
 
   
-  NSFileManager * fileManager = [NSFileManager defaultManager];
-  NSString * tempDir = [MVDocument temporaryDirectory];
-  
-  __autoreleasing NSError * error;
-  
-  // remove previously forgotten temporary files
-  if (isFirstMachOView && [fileManager fileExistsAtPath:tempDir isDirectory:NULL] == YES)
-  {
-    if ([fileManager removeItemAtPath:tempDir error:&error] == NO)
-    {
-      [NSApp presentError:error];
-    }
-  }
-  
-  // create placeholder for temporary files
-  if ([fileManager fileExistsAtPath:tempDir isDirectory:NULL] == NO)
-  {
-    if ([fileManager createDirectoryAtPath:tempDir
-               withIntermediateDirectories:NO
-                                attributes:nil
-                                     error:&error] == NO)
-    {
-      [NSApp presentError:error];
-    }
-  }
+  // Each process owns a private directory; another instance must never delete
+  // swap files belonging to documents that are still open.
+  [MVDocument temporaryDirectory];
 }
 
 //----------------------------------------------------------------------------
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification 
 {
 #ifdef MV_STATISTICS
-  nrow_total = nrow_loaded = 0;
   [NSThread detachNewThreadSelector:@selector(printStat) toTarget:self withObject:nil];
 #endif 
   
@@ -296,15 +253,8 @@ int64_t nrow_loaded; // number of loaded rows
 //----------------------------------------------------------------------------
 - (void)applicationWillTerminate:(NSNotification *)aNotification
 {
-  BOOL isLastMachOView = [self isOnlyRunningMachOView];
-  
-  if (isLastMachOView == YES)
-  {
-    // remove temporary files
-    NSFileManager * fileManager = [NSFileManager defaultManager];
-    NSString * tempDir = [MVDocument temporaryDirectory];
-    [fileManager removeItemAtPath:tempDir error:NULL];
-  }
+  NSString * directory = [MVDocument temporaryDirectory];
+  if (directory != nil) [[NSFileManager defaultManager] removeItemAtPath:directory error:NULL];
 }
 
 //----------------------------------------------------------------------------
@@ -330,7 +280,11 @@ int64_t nrow_loaded; // number of loaded rows
 {
   for (;;)
   {
-    NSLog(@"stat: %lld/%lld rows in memory\n",nrow_loaded,nrow_total);
+    @autoreleasepool {
+      NSLog(@"stat: %lld/%lld rows in memory\n",
+            __atomic_load_n(&nrow_loaded, __ATOMIC_RELAXED),
+            __atomic_load_n(&nrow_total, __ATOMIC_RELAXED));
+    }
     [NSThread sleepForTimeInterval:1];
   }
 }

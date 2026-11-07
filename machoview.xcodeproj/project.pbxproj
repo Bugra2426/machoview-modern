@@ -16,13 +16,26 @@
 		3C0F958A11F658BF0070A2FE /* redApple.icns in Resources */ = {isa = PBXBuildFile; fileRef = 3C0F958811F658BF0070A2FE /* redApple.icns */; };
 		3C1163F113D5B88D007B4A6E /* stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C1163F013D5B88D007B4A6E /* stop.png */; };
 		3C34A82B14892FF1005B53F6 /* FatLayout.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C34A82A14892FF1005B53F6 /* FatLayout.mm */; };
-		3C3763CF18382A68005E6BFB /* libLTO.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3C3763C71838285C005E6BFB /* libLTO.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		3C3EC88F13B66E8900ECCDB2 /* Preferences.xib in Resources */ = {isa = PBXBuildFile; fileRef = 3C3EC88D13B66E8900ECCDB2 /* Preferences.xib */; };
 		3C46C7D91687C6ED00212190 /* PreferenceController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C46C7D81687C6ED00212190 /* PreferenceController.mm */; };
 		3C46C84B1687DEE600212190 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 3C46C8491687DEE600212190 /* Credits.rtf */; };
 		3C61A87C1240B0B400BDF3D0 /* SectionContents.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C61A87B1240B0B400BDF3D0 /* SectionContents.mm */; };
 		3C73525A11DE122900DF1950 /* Document.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C73525911DE122900DF1950 /* Document.mm */; };
-		3CB9D3F8139FC96D003D8D33 /* libdisasm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CB9D3F7139FC96D003D8D33 /* libdisasm.a */; };
+		A10000000000000000000001 = {isa = PBXBuildFile; fileRef = A20000000000000000000001; };
+		A10000000000000000000002 = {isa = PBXBuildFile; fileRef = A20000000000000000000002; };
+		A10000000000000000000003 = {isa = PBXBuildFile; fileRef = A20000000000000000000003; };
+		A10000000000000000000004 = {isa = PBXBuildFile; fileRef = A20000000000000000000004; };
+		A10000000000000000000005 = {isa = PBXBuildFile; fileRef = A20000000000000000000005; };
+		A10000000000000000000006 = {isa = PBXBuildFile; fileRef = A20000000000000000000006; };
+		A10000000000000000000007 = {isa = PBXBuildFile; fileRef = A20000000000000000000007; };
+		A10000000000000000000008 = {isa = PBXBuildFile; fileRef = A20000000000000000000008; };
+		A10000000000000000000009 = {isa = PBXBuildFile; fileRef = A20000000000000000000009; };
+		A1000000000000000000000A = {isa = PBXBuildFile; fileRef = A2000000000000000000000A; };
+		A1000000000000000000000B = {isa = PBXBuildFile; fileRef = A2000000000000000000000B; };
+		A1000000000000000000000C = {isa = PBXBuildFile; fileRef = A2000000000000000000000C; };
+		A1000000000000000000000D = {isa = PBXBuildFile; fileRef = A2000000000000000000000D; };
+		A1000000000000000000000E = {isa = PBXBuildFile; fileRef = A2000000000000000000000E; };
+		A1000000000000000000000F = {isa = PBXBuildFile; fileRef = A2000000000000000000000F; };
 		3CC0022211F64A45000F7A3D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CC0022111F64A45000F7A3D /* Cocoa.framework */; };
 		3CCC228D129EE70C0083DAE2 /* CRTFootPrints.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CCC228C129EE70C0083DAE2 /* CRTFootPrints.mm */; };
 		3CD037C21248F66C00DCFC68 /* DyldInfo.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CD037C11248F66C00DCFC68 /* DyldInfo.mm */; };
@@ -41,16 +54,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		3C3763CD183829C9005E6BFB /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = ../lib;
-			dstSubfolderSpec = 6;
-			files = (
-				3C3763CF18382A68005E6BFB /* libLTO.dylib in CopyFiles */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		3CACF74A11CBCC69006BCD3F /* Copy Files */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 12;
@@ -81,7 +84,6 @@
 		3C30845A11FDAF6F008A270F /* createdmg */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = createdmg; sourceTree = "<group>"; };
 		3C34A82914892FF1005B53F6 /* FatLayout.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FatLayout.h; sourceTree = "<group>"; };
 		3C34A82A14892FF1005B53F6 /* FatLayout.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = FatLayout.mm; sourceTree = "<group>"; };
-		3C3763C71838285C005E6BFB /* libLTO.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libLTO.dylib; path = lib/libLTO.dylib; sourceTree = "<group>"; };
 		3C3EC88E13B66E8900ECCDB2 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/Preferences.xib; sourceTree = "<group>"; };
 		3C46C7D71687C5CB00212190 /* PreferenceController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PreferenceController.h; sourceTree = "<group>"; };
 		3C46C7D81687C6ED00212190 /* PreferenceController.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = PreferenceController.mm; sourceTree = "<group>"; };
@@ -92,7 +94,21 @@
 		3C73525911DE122900DF1950 /* Document.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Document.mm; sourceTree = "<group>"; };
 		3C871CB1141AC7C100288512 /* Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Common.h; sourceTree = "<group>"; };
 		3CA2331811F6445700684D15 /* MachOView.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MachOView.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		3CB9D3F7139FC96D003D8D33 /* libdisasm.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libdisasm.a; sourceTree = "<group>"; };
+		A20000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/bytesex.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/print_objc2_64bit.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/fatals.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/disasm_support.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/allocate.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/arm_disasm.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/print_objc2_32bit.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/i386_disasm.c; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/llvm.c; sourceTree = SOURCE_ROOT; };
+		A2000000000000000000000A = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/dyld_bind_info.c; sourceTree = SOURCE_ROOT; };
+		A2000000000000000000000B = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/reloc.c; sourceTree = SOURCE_ROOT; };
+		A2000000000000000000000C = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/ofile_print.c; sourceTree = SOURCE_ROOT; };
+		A2000000000000000000000D = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/arm64_disasm.c; sourceTree = SOURCE_ROOT; };
+		A2000000000000000000000E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "tests/data-controller-tests.mm"; sourceTree = SOURCE_ROOT; };
+		A2000000000000000000000F = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = otool_disasm/disasm_output.c; sourceTree = SOURCE_ROOT; };
 		3CC0022111F64A45000F7A3D /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		3CCB9FDF11F6DC2000F57CAA /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3CCC228B129EE70C0083DAE2 /* CRTFootPrints.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CRTFootPrints.h; sourceTree = "<group>"; };
@@ -130,7 +146,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				3CC0022211F64A45000F7A3D /* Cocoa.framework in Frameworks */,
-				3CB9D3F8139FC96D003D8D33 /* libdisasm.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -177,6 +192,21 @@
 				3CE90D1711F5F82200543402 /* ReadWrite.mm */,
 				3CCC228B129EE70C0083DAE2 /* CRTFootPrints.h */,
 				3CCC228C129EE70C0083DAE2 /* CRTFootPrints.mm */,
+				A20000000000000000000001,
+				A20000000000000000000002,
+				A20000000000000000000003,
+				A20000000000000000000004,
+				A20000000000000000000005,
+				A20000000000000000000006,
+				A20000000000000000000007,
+				A20000000000000000000008,
+				A20000000000000000000009,
+				A2000000000000000000000A,
+				A2000000000000000000000B,
+				A2000000000000000000000C,
+				A2000000000000000000000D,
+				A2000000000000000000000E,
+				A2000000000000000000000F,
 			);
 			name = machoview;
 			sourceTree = "<group>";
@@ -184,7 +214,6 @@
 		1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				3CB9D3F7139FC96D003D8D33 /* libdisasm.a */,
 				3CC0022111F64A45000F7A3D /* Cocoa.framework */,
 			);
 			name = "Linked Frameworks";
@@ -252,7 +281,6 @@
 			children = (
 				1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */,
 				1058C7A2FEA54F0111CA2CBB /* Other Frameworks */,
-				3C3763C71838285C005E6BFB /* libLTO.dylib */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -265,11 +293,10 @@
 			buildConfigurationList = C01FCF4A08A954540054247B /* Build configuration list for PBXNativeTarget "MachOView" */;
 			buildPhases = (
 				3CACF74A11CBCC69006BCD3F /* Copy Files */,
-				3C3763CD183829C9005E6BFB /* CopyFiles */,
 				8D1107290486CEB800E47090 /* Resources */,
 				8D11072C0486CEB800E47090 /* Sources */,
 				8D11072E0486CEB800E47090 /* Frameworks */,
-				3C2656DF11F8E35C002D8A1C /* Run Script Versioning */,
+				3C2656DF11F8E35C002D8A1C /* Embed native LLVM */,
 			);
 			buildRules = (
 			);
@@ -327,19 +354,17 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		3C2656DF11F8E35C002D8A1C /* Run Script Versioning */ = {
+		3C2656DF11F8E35C002D8A1C /* Embed native LLVM */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Run Script Versioning";
-			outputPaths = (
-			);
+			alwaysOutOfDate = 1;
+			files = ();
+			inputPaths = ("$(SRCROOT)/scripts/embed-llvm.sh", "$(TOOLCHAIN_DIR)/usr/lib/libLTO.dylib");
+			name = "Embed native LLVM";
+			outputPaths = ("$(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/libLTO.dylib");
 			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "#!/bin/bash\n# Auto Increment Version Script\nbuildPlist=\"Info.plist\"\nCFBundleShortVersionString=$(/usr/libexec/PlistBuddy -c \"Print CFBundleShortVersionString\" $buildPlist)\nCFBuildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBuildNumber\" $buildPlist)\nCFBuildNumber=$(($CFBuildNumber + 1))\n/usr/libexec/PlistBuddy -c \"Set :CFBuildNumber $CFBuildNumber\" $buildPlist\nCFBuildDate=$(date)\n/usr/libexec/PlistBuddy -c \"Set :CFBuildDate $CFBuildDate\" $buildPlist\n# set Bundle version\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $CFBuildNumber\" $buildPlist\necho \"New build: $CFBundleShortVersionString (build: $CFBuildNumber) $CFBuildDate\"";
+			shellPath = /bin/bash;
+			shellScript = "bash \"${SRCROOT}/scripts/embed-llvm.sh\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -367,6 +392,21 @@
 				3CF22E92144C8FC600380071 /* ObjC.mm in Sources */,
 				3C34A82B14892FF1005B53F6 /* FatLayout.mm in Sources */,
 				3C46C7D91687C6ED00212190 /* PreferenceController.mm in Sources */,
+				A10000000000000000000001,
+				A10000000000000000000002,
+				A10000000000000000000003,
+				A10000000000000000000004,
+				A10000000000000000000005,
+				A10000000000000000000006,
+				A10000000000000000000007,
+				A10000000000000000000008,
+				A10000000000000000000009,
+				A1000000000000000000000A,
+				A1000000000000000000000B,
+				A1000000000000000000000C,
+				A1000000000000000000000D,
+				A1000000000000000000000E,
+				A1000000000000000000000F,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -422,16 +462,14 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Prefix.pch;
 				GCC_PREPROCESSOR_DEFINITIONS = "DEBUG=1";
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)",
-					"$(SRCROOT)/otool_disasm/include",
-					"$(inherited)",
-					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
-				);
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				USE_HEADERMAP = NO;
+				HEADER_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/otool_disasm");
 				INFOPLIST_FILE = Info.plist;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)";
-				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = YES;
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/otool_disasm";
+				PRODUCT_BUNDLE_IDENTIFIER = org.machoview.MachOView;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 			};
 			name = Debug;
 		};
@@ -441,16 +479,14 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Prefix.pch;
 				GCC_PREPROCESSOR_DEFINITIONS = NS_BLOCK_ASSERTIONS;
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)",
-					"$(SRCROOT)/otool_disasm/include",
-					"$(inherited)",
-					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
-				);
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				USE_HEADERMAP = NO;
+				HEADER_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/otool_disasm");
 				INFOPLIST_FILE = Info.plist;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)";
-				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = YES;
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/otool_disasm";
+				PRODUCT_BUNDLE_IDENTIFIER = org.machoview.MachOView;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 			};
 			name = Release;
 		};
@@ -493,13 +529,18 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				CURRENT_PROJECT_VERSION = 9381;
+				MARKETING_VERSION = 2.5.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = MachOView;
 				SDKROOT = macosx;
 				STRIP_INSTALLED_PRODUCT = NO;
 				USER_HEADER_SEARCH_PATHS = "";
-				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
 		};
@@ -528,6 +569,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_OPTIMIZATION_LEVEL = 2;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -538,13 +581,18 @@
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				CURRENT_PROJECT_VERSION = 9381;
+				MARKETING_VERSION = 2.5.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_NAME = MachOView;
 				SDKROOT = macosx;
 				STRIP_INSTALLED_PRODUCT = NO;
 				USER_HEADER_SEARCH_PATHS = "";
-				VALID_ARCHS = x86_64;
 			};
 			name = Release;
 		};

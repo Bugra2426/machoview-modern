@@ -3,6 +3,7 @@
 #include <stuff/bool.h>
 #include <stuff/allocate.h>
 #include "dyld_bind_info.h"
+#include "disasm_output.h"
 
 const char *
 bindTypeName(

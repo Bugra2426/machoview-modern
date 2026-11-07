@@ -4,12 +4,14 @@
 
 #ifdef __OBJC__
     #import <Cocoa/Cocoa.h>
-#endif
 
+#ifdef __cplusplus
 #include <string>
 #include <vector>
 #include <set>
 #include <map>
+#include <cxxabi.h>
+#endif
 
 #include <mach-o/arch.h>
 #include <mach-o/loader.h>
@@ -22,5 +24,4 @@
 #include <mach-o/ranlib.h>
 #include <mach-o/compact_unwind_encoding.h>
 #include <mach-o/swap.h>
-
-#include <cxxabi.h>
+#endif // __OBJC__; bundled C sources provide their own headers

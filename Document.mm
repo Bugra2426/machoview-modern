@@ -213,6 +213,7 @@
   else
   {
     // put leading zeroes in order to preserve the original length
+    if (string.length > length) return NO;
     NSUInteger numZeroes = length - string.length;
     NSMutableString * zeroes = [[NSMutableString alloc] initWithCapacity:numZeroes];
     while (numZeroes-- > 0)
@@ -311,15 +312,21 @@ enum ViewType
 //----------------------------------------------------------------------------
 + (NSString *)temporaryDirectory
 {
-  NSProcessInfo * procInfo = [NSProcessInfo processInfo];
-  NSBundle * mainBundle = [NSBundle mainBundle];
-  
-  NSString * swapDir = [NSString stringWithFormat:@"%@%@_%@.XXXXXXXXXXX",
-                        NSTemporaryDirectory(),
-                        procInfo.processName,
-                        [mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"]];
-  
-  return swapDir;
+  static NSString * directory;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSString * name = [@"MachOView-" stringByAppendingString:[NSUUID UUID].UUIDString];
+    NSString * path = [NSTemporaryDirectory() stringByAppendingPathComponent:name];
+    NSError * error = nil;
+    if ([[NSFileManager defaultManager] createDirectoryAtPath:path
+                               withIntermediateDirectories:NO
+                                                attributes:@{NSFilePosixPermissions: @0700}
+                                                     error:&error])
+      directory = path;
+    else
+      NSLog(@"Cannot create temporary directory: %@", error);
+  });
+  return directory;
 }
 
 //-----------------------------------------------------------------------------
@@ -330,7 +337,9 @@ enum ViewType
   {
     dataController = [[MVDataController alloc] init];
     threadCount = 0;
-    
+    notificationLock = [[NSLock alloc] init];
+    pendingTreeNodes = [[NSMutableSet alloc] init];
+
     NSNotificationCenter * nc = [NSNotificationCenter defaultCenter];
     typeof(self) __weak weakSelf = self;
     
@@ -397,78 +406,96 @@ enum ViewType
 //----------------------------------------------------------------------------
 - (void)handleDataTreeChanged:(NSNotification *)notification
 {
-  if (notification.object == dataController)
+  if (notification.object != dataController) return;
+  [notificationLock lock];
+  MVNode * node = notification.userInfo[MVNodeUserInfoKey];
+  if (node == nil || pendingTreeNodes.count >= 256)
   {
-    __weak typeof(leftView) weakLeftView = self->leftView;
-    
-    // Update UI here, on the main queue
-    NSDictionary * userInfo = notification.userInfo;
-    if (userInfo)
-    {
-      //refresh the modified node only
-      MVNode * node = userInfo[MVNodeUserInfoKey];
-      
-      dispatch_async(dispatch_get_main_queue(), ^
-      {
-        [weakLeftView reloadItem:node.parent];
-      
-        if ([weakLeftView isItemExpanded:node.parent])
-        {
-          [weakLeftView reloadItem:node];
-        }
-      });
-    }
-    else
-    {
-      dispatch_async(dispatch_get_main_queue(), ^
-      {
-        [weakLeftView reloadItem:self.dataController.rootNode reloadChildren:YES];
-      });
-    }
+    fullTreeRefreshPending = YES;
+    [pendingTreeNodes removeAllObjects];
   }
+  else if (!fullTreeRefreshPending)
+    [pendingTreeNodes addObject:node];
+  BOOL schedule = !treeRefreshPending;
+  treeRefreshPending = YES;
+  [notificationLock unlock];
+  if (!schedule) return;
+
+  __weak MVDocument * weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    MVDocument * document = weakSelf;
+    if (document == nil) return;
+    [document->notificationLock lock];
+    NSArray * nodes = document->pendingTreeNodes.allObjects;
+    BOOL full = document->fullTreeRefreshPending;
+    [document->pendingTreeNodes removeAllObjects];
+    document->treeRefreshPending = NO;
+    document->fullTreeRefreshPending = NO;
+    [document->notificationLock unlock];
+    if (document->closed) return;
+    if (full)
+      [document->leftView reloadData];
+    else
+      for (MVNode * changed in nodes)
+      {
+        [document->leftView reloadItem:changed.parent reloadChildren:YES];
+        [document->leftView reloadItem:changed];
+      }
+  });
 }
 
 //----------------------------------------------------------------------------
 - (void)handleDataTableChanged:(NSNotification *)notification
 {
-  if (notification.object == dataController)
-  {
-    [rightView noteNumberOfRowsChanged];
-    [rightView reloadData];
-  }
+  if (notification.object != dataController) return;
+  [notificationLock lock];
+  BOOL schedule = !tableRefreshPending;
+  tableRefreshPending = YES;
+  [notificationLock unlock];
+  if (!schedule) return;
+  __weak MVDocument * weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    MVDocument * document = weakSelf;
+    if (document == nil) return;
+    [document->notificationLock lock];
+    document->tableRefreshPending = NO;
+    [document->notificationLock unlock];
+    if (document->closed) return;
+    [document.dataController.selectedNode filterDetails:document->searchField.stringValue];
+    [document->rightView noteNumberOfRowsChanged];
+    [document->rightView reloadData];
+  });
 }
 
 //----------------------------------------------------------------------------
 - (void)handleThreadStateChanged:(NSNotification *)notification
 {
-  if (notification.object == dataController)
-  {
-    NSString * threadState = notification.userInfo[MVStatusUserInfoKey];
-    if ([threadState isEqualToString:MVStatusTaskStarted] == YES)
+  if (notification.object != dataController) return;
+  NSString * state = notification.userInfo[MVStatusUserInfoKey];
+  [notificationLock lock];
+  if ([state isEqualToString:MVStatusTaskStarted]) ++threadCount;
+  else if ([state isEqualToString:MVStatusTaskTerminated] && threadCount > 0) --threadCount;
+  BOOL schedule = !statusRefreshPending;
+  statusRefreshPending = YES;
+  [notificationLock unlock];
+  if (!schedule) return;
+  __weak MVDocument * weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    MVDocument * document = weakSelf;
+    if (document == nil) return;
+    [document->notificationLock lock];
+    BOOL active = document->threadCount > 0;
+    document->statusRefreshPending = NO;
+    [document->notificationLock unlock];
+    if (document->closed) return;
+    if (active) [document->progressIndicator startAnimation:nil];
+    else
     {
-      if (OSAtomicIncrement32(&threadCount) == 1)
-      {
-        dispatch_async(dispatch_get_main_queue(), ^
-                       {
-                         [self->progressIndicator setUsesThreadedAnimation:YES];
-                         [self->progressIndicator startAnimation:nil];
-                         [self->stopButton setHidden:NO];
-                       });
-      }
+      [document->progressIndicator stopAnimation:nil];
+      document->statusText.stringValue = @"";
     }
-    else if ([threadState isEqualToString:MVStatusTaskTerminated] == YES)
-    {
-      if (OSAtomicDecrement32(&threadCount) == 0)
-      {
-        dispatch_async(dispatch_get_main_queue(), ^
-                       {
-                         [self->progressIndicator stopAnimation:nil];
-                         self->statusText.stringValue = @"";
-                         [self->stopButton setHidden:YES];
-                       });
-      }
-    }
-  }
+    [document->stopButton setHidden:!active];
+  });
 }
 
 //----------------------------------------------------------------------------
@@ -494,7 +521,7 @@ enum ViewType
 #ifdef MV_NO_MULTITHREAD
     [layout doBackgroundTasks];
 #else
-    [layout.backgroundThread start];
+    [layout startBackgroundTasks];
 #endif
   }
 }
@@ -515,51 +542,27 @@ enum ViewType
 //----------------------------------------------------------------------------
 - (BOOL)readFromURL:(NSURL *)absoluteURL ofType:(NSString *)typeName error:(NSError **)outError
 {
-  // create a temporary copy for patching
-  const char *tmp = [MVDocument temporaryDirectory].UTF8String;
-  char *tmpFilePath = strdup(tmp);
-  if (mktemp(tmpFilePath) == NULL)
-  {
-    NSLog(@"mktemp failed!");
-    free(tmpFilePath);
-    return NO;
-  }
-
-  NSURL * tmpURL = [NSURL fileURLWithPath:@(tmpFilePath)];
-  free(tmpFilePath);
-  
-  [[NSFileManager defaultManager] copyItemAtURL:absoluteURL 
-                                          toURL:tmpURL
-                                          error:outError];
-  if (*outError) return NO;
-  
-  // open the copied binary for patching
-  dataController.realData = [NSMutableData dataWithContentsOfURL:tmpURL
-                                                         options:NSDataReadingMappedAlways 
-                                                           error:outError];
-  if (*outError) return NO;
-  
-  // open the original binary for viewing/editing
   dataController.fileName = absoluteURL.path;
-  dataController.fileData = [NSMutableData dataWithContentsOfURL:absoluteURL 
-                                                         options:NSDataReadingMappedIfSafe 
-                                                           error:outError];
-  if (*outError) return NO;
-
-  @try 
+  dataController.fileData = [NSMutableData dataWithContentsOfURL:absoluteURL
+                                                        options:NSDataReadingMappedIfSafe
+                                                          error:outError];
+  if (dataController.fileData == nil) return NO;
+  // Independent mutable relocation/binding view, without copying the entire
+  // binary to a temporary file and reading it a second time.
+  dataController.realData = [dataController.fileData mutableCopy];
+  @try
   {
-    [dataController createLayouts:dataController.rootNode location:0 length:(dataController.fileData).length];
+    [dataController createLayouts:dataController.rootNode location:0 length:dataController.fileData.length];
   }
-  @catch (NSException * exception) 
+  @catch (NSException * exception)
   {
-    *outError = [NSError errorWithDomain:NSCocoaErrorDomain 
-                                    code:NSFileReadUnknownError 
-                                userInfo:@{NSFilePathErrorKey: self.fileURL.path, 
-                                          NSLocalizedDescriptionKey: exception.reason}];
+    if (outError != NULL)
+      *outError = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnknownError
+                                  userInfo:@{NSFilePathErrorKey: absoluteURL.path ?: @"",
+                                            NSLocalizedDescriptionKey: exception.reason ?: @"Invalid binary"}];
     return NO;
   }
-                             
-  return YES;                             
+  return YES;
 }
 
 //----------------------------------------------------------------------------
@@ -621,7 +624,8 @@ enum ViewType
            
   NSInteger colIndex = [sender clickedColumn];
   NSInteger rowIndex = [sender clickedRow];
-  
+  if (rowIndex < 0 || colIndex < 0 || (NSUInteger)colIndex >= rightView.tableColumns.count) return;
+
   if (rightView.tableColumns[colIndex].editable)
   {
     if (dataController.selectedNode.details != nil)
@@ -695,16 +699,19 @@ enum ViewType
 }
 
 //----------------------------------------------------------------------------
-- (void)canCloseDocumentWithDelegate:(id)delegate shouldCloseSelector:(SEL)shouldCloseSelector contextInfo:(void *)contextInfo
+- (void)close
+{
+  // Cancelling a Save/Don't Save/Cancel sheet must not stop a still-open document.
+  closed = YES;
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
+  for (MVLayout * layout in dataController.layouts) [layout.backgroundThread cancel];
+  [dataController.selectedNode closeDetails];
+  [super close];
+}
+
+- (void)dealloc
 {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
-
-  for (MVLayout * layout in dataController.layouts)
-  {
-    [layout.backgroundThread cancel];
-  }
-  
-  [super canCloseDocumentWithDelegate:delegate shouldCloseSelector:shouldCloseSelector contextInfo:contextInfo];
 }
 
 
@@ -720,24 +727,13 @@ enum ViewType
     
     if (dataController.selectedNode != nodeToSelect)
     {
-      // close old details
-      if (dataController.selectedNode.detailsOffset != 0)
-      {
-        // release swap file
-        [dataController.selectedNode closeDetails];
-        
-        // kick out from memory
-        dataController.selectedNode.details = nil;
-      }
-      
-      // open new details
-      [nodeToSelect openDetails];
-      
-      // reset filter on node change
-      [nodeToSelect filterDetails:nil];
-      
-      // swap nodes
+      [dataController.selectedNode closeDetails];
+      // Publish selection BEFORE opening/filtering, so the writer cannot evict
+      // the newly selected table between those operations.
       dataController.selectedNode = nodeToSelect;
+      [nodeToSelect openDetails];
+      searchField.stringValue = @"";
+      [nodeToSelect filterDetails:nil];
     }
   
     MVLayout * layout = (nodeToSelect.userInfo)[MVLayoutUserInfoKey];

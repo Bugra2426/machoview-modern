@@ -27,6 +27,10 @@
  */
 /* byte_sex.c */
 
+/* Instruction disassembly never consumes Mach thread states. Keep these old
+ * cctools routines opt-in: their SDK-era host structs are unavailable (or have
+ * incompatible layouts) on current macOS, especially arm64. */
+#ifdef OTOOL_LEGACY_THREAD_STATES
 #define __cr cr
 #define __ctr ctr
 #define __dar dar
@@ -182,9 +186,12 @@
 #define __dr6 dr6
 #define __dr7 dr7
 
+#endif /* OTOOL_LEGACY_THREAD_STATES */
+
 #include <string.h>
 #include <mach-o/fat.h>
 #include <mach-o/loader.h>
+#ifdef OTOOL_LEGACY_THREAD_STATES
 #include <mach/m68k/thread_status.h>
 #undef MACHINE_THREAD_STATE	/* need to undef these to avoid warnings */
 #undef MACHINE_THREAD_STATE_COUNT
@@ -201,6 +208,7 @@
 #include <mach/hppa/thread_status.h>
 #include <mach/sparc/thread_status.h>
 #include <mach/arm/thread_status.h>
+#endif /* OTOOL_LEGACY_THREAD_STATES */
 #include <mach-o/nlist.h>
 #include <mach-o/reloc.h>
 #include <mach-o/ranlib.h>
@@ -723,6 +731,7 @@ enum byte_sex target_byte_sex)
 	ut->cmdsize = SWAP_INT(ut->cmdsize);
 }
 
+#ifdef OTOOL_LEGACY_THREAD_STATES
 __private_extern__
 void
 swap_m68k_thread_state_regs(
@@ -2384,6 +2393,8 @@ enum byte_sex target_byte_sex)
 	cpu->__pc = SWAP_LONG_LONG(cpu->__pc);
 	cpu->__cpsr = SWAP_INT(cpu->__cpsr);
 }
+
+#endif /* OTOOL_LEGACY_THREAD_STATES */
 
 __private_extern__
 void
