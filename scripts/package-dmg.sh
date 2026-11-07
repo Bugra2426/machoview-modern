@@ -9,8 +9,9 @@ usage() {
   printf '%s\n' \
     'Usage: scripts/package-dmg.sh APP OUTPUT.dmg [ARCH]' \
     '' \
-    'APP must be a complete, signed MachOView.app. ARCH defaults to arm64;' \
-    'x86_64 is also accepted. OUTPUT must not exist; its parent must exist' \
+    'APP must be a complete, signed MachOView.app. ARCH defaults to universal' \
+    '(arm64 + x86_64); arm64 or x86_64 alone is also accepted.' \
+    'OUTPUT must not exist; its parent must exist' \
     'on a filesystem supporting hard links (for atomic no-clobber publication).' \
     '' \
     'Requires macOS 15 or later, Xcode command-line tools, Python 3.10+ and' \
@@ -36,8 +37,8 @@ fi
 
 app_input="${1%/}"
 output_input="$2"
-architecture="${3:-arm64}"
-case "$architecture" in arm64|x86_64) ;; *) fail 'ARCH must be arm64 or x86_64.' ;; esac
+architecture="${3:-universal}"
+case "$architecture" in universal|arm64|x86_64) ;; *) fail 'ARCH must be universal, arm64, or x86_64.' ;; esac
 case "$app_input$output_input" in *$'\n'*|*$'\r'*) fail 'Paths must not contain newlines.' ;; esac
 [[ -n "$app_input" && -d "$app_input" && ! -L "$app_input" ]] || fail 'APP must be a real app directory, not a symlink.'
 app="$(cd -- "$app_input" && pwd -P)"

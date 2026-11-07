@@ -122,6 +122,8 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("dmgbuild==1.6.7", result.stdout)
         self.assertIn("No notarization", result.stdout)
+        self.assertIn("ARCH defaults to universal", result.stdout)
+        self.assertIn("arm64 + x86_64", result.stdout)
 
     def test_argument_count(self):
         for args in ((), ("only-one",), ("1", "2", "3", "4")):

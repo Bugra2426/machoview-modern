@@ -1,15 +1,16 @@
-# MachOView — native Apple Silicon build
+# MachOView — universal macOS build
 
 MachOView is a Cocoa viewer for Mach-O executables, object files, universal binaries, and static archives. This modernization replaces the Intel-only build inputs with source-built disassembly code and a native LLVM backend, and adds tested-build packaging and GitHub Releases.
 
 ## Requirements and compatibility
 
-- **Apple Silicon, macOS 15 or later** for the baseline CI build.
-- The separate **macOS 26** build uses that runner's Xcode/SDK and requires macOS 26 or later.
-- **No Rosetta:** CI builds the application as `arm64`, verifies the architecture of every bundled Mach-O binary, and runs the built executable on an ARM64 runner.
-- Local development needs full Xcode (not only Command Line Tools), with the selected toolchain providing an ARM64-capable `libLTO.dylib`.
+- **Apple Silicon or Intel, macOS 15 or later** for the baseline CI build.
+- Each download contains one **Universal 2 app** with both `arm64` and `x86_64` slices, including its bundled LLVM backend. The same app runs natively on either CPU.
+- The separate **macOS 26** build uses that runner's Xcode/SDK and requires macOS 26 or later. Your Intel Mac must support the chosen macOS version; universal packaging does not lower the OS requirement.
+- **No Rosetta:** Apple Silicon runs the ARM64 slice, while Intel runs the x86_64 slice. CI tests both on native hardware, not through translation.
+- Local development needs full Xcode (not only Command Line Tools), with the selected compiler toolchain providing both slices in `libLTO.dylib`.
 
-The Xcode project uses the selected `macosx` SDK, C++17/libc++, and standard architectures. CI deliberately distributes ARM64-only apps. Intel/universal builds are not part of the release test matrix.
+The Xcode project uses the selected `macosx` SDK, C++17/libc++, and standard architectures. CI explicitly builds `ARCHS="arm64 x86_64"` with `ONLY_ACTIVE_ARCH=NO` and rejects any bundled Mach-O that lacks either slice. It will not silently publish an ARM-only app as universal.
 
 ## Interface, SDK, and Dark Mode
 
@@ -24,12 +25,12 @@ A full appearance update would require adaptive custom colors, contrast and sele
 
 ## Downloading a build
 
-Open **[GitHub Releases](https://github.com/Bugra2426/machoview-modern/releases)** for installable downloads. Successful pushes to `main` publish **preview releases** automatically; version tags publish **stable releases**. Both macOS jobs must pass before either kind of release is published.
+Open **[GitHub Releases](https://github.com/Bugra2426/machoview-modern/releases)** for installable downloads. Successful pushes to `main` publish **preview releases** automatically; version tags publish **stable releases**. Both universal-build jobs and both native Intel-test jobs must pass before either kind of release is published.
 
 Each release includes:
 
-- `MachOView-VERSION-macos-15-arm64.dmg` — for macOS 15 or later.
-- `MachOView-VERSION-macos-26-arm64.dmg` — for macOS 26 or later.
+- `MachOView-VERSION-macos-15-universal.dmg` — for macOS 15 or later.
+- `MachOView-VERSION-macos-26-universal.dmg` — for macOS 26 or later.
 - Matching `.zip` alternatives and a combined `SHA256SUMS.txt` covering all four downloads.
 
 The DMG uses a custom installation background, arranged icons, and an **Applications** shortcut. It installs no privileged helper and does not run an installer script.
@@ -50,10 +51,10 @@ Select a full Xcode installation first, then:
 xcodebuild -project machoview.xcodeproj -scheme MachOView \
   -configuration Release -destination 'generic/platform=macOS' \
   -derivedDataPath build/DerivedData \
-  ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+  'ARCHS=arm64 x86_64' ONLY_ACTIVE_ARCH=NO \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual build
 
-bash scripts/verify-app.sh build/DerivedData/Build/Products/Release/MachOView.app arm64
+bash scripts/verify-app.sh build/DerivedData/Build/Products/Release/MachOView.app universal
 build/DerivedData/Build/Products/Release/MachOView.app/Contents/MacOS/MachOView --self-test
 ```
 
@@ -74,7 +75,7 @@ python3 -m venv build/packaging-venv
 build/packaging-venv/bin/python -m pip install -r scripts/packaging-requirements.txt
 PATH="$PWD/build/packaging-venv/bin:$PATH" bash scripts/package-dmg.sh \
   build/DerivedData/Build/Products/Release/MachOView.app \
-  build/MachOView-local-arm64.dmg arm64
+  build/MachOView-local-universal.dmg universal
 ```
 
 The pinned `dmgbuild` tool generates the Finder layout without automating Finder or needing an interactive desktop. Packaging preserves the signed app, verifies the finished image, and checks the copy mounted read-only, including the Applications shortcut. The tool and its Python dependencies are **not shipped inside the app or DMG**. Existing output files are not overwritten; choose a new filename for another build. The artwork changes the disk image's presentation, not the app's interface or Dark Mode support.
@@ -85,12 +86,14 @@ The pinned `dmgbuild` tool generates the Finder layout without automating Finder
 
 1. Verifies the runner is native ARM64 and records Xcode, SDK, and macOS versions.
 2. Checks project structure and runs toolchain, release-policy, packaging-configuration, and portable decoder tests.
-3. Compiles an optimized **Release (`-O2`)** build with dead-code stripping.
-4. Checks all bundle architectures, dependency paths, and signatures.
-5. Runs headless decoder and data-controller regression tests with a timeout.
-6. Creates and verifies a custom DMG, packages a ZIP with macOS metadata preserved, and uploads both with checksums and logs.
+3. Compiles an optimized **universal Release (`-O2`)** build with dead-code stripping.
+4. Requires both CPU slices in every bundled Mach-O and checks dependency paths in all slices, plus signatures.
+5. Runs headless decoder and data-controller regression tests natively on ARM64 with a timeout.
+6. Creates and verifies a custom universal DMG, packages a ZIP with macOS metadata preserved, and uploads both with checksums and logs.
 
-**Automatic previews:** a push to the repository's default branch (`main`) publishes a uniquely numbered `build-N` prerelease after both jobs succeed. The preview tag points at the exact built commit and does not replace the latest stable release. No manual tag is needed to get downloadable releases from `main`.
+Two additional jobs on **`macos-15-intel` and `macos-26-intel`** download the corresponding packaged universal app, verify the checksums and bundle, and run its `x86_64` slice natively. They test the actual ZIP being released, not a separately rebuilt Intel executable. They do not install or use Rosetta. The DMG contains the same verified app; packaging also compares the mounted app against the source bundle.
+
+**Automatic previews:** a push to the repository's default branch (`main`) publishes a uniquely numbered `build-N` prerelease after all four jobs succeed. The preview tag points at the exact built commit and does not replace the latest stable release. No manual tag is needed to get downloadable releases from `main`.
 
 **Stable releases:** when ready, create and push a version tag on the intended commit:
 
@@ -99,7 +102,7 @@ git tag v2.5.0
 git push origin v2.5.0
 ```
 
-Stable tags must use `vMAJOR.MINOR.PATCH`. The tag supplies the application version; the workflow run number supplies the build number. **Both Mac jobs, native tests, and DMG checks must succeed**, and all four expected downloads must be present, before the release job publishes anything. Pull requests, non-default branches, and manual dispatches never publish. The release job alone receives repository write permission through `GITHUB_TOKEN`; no personal token is needed. Repository/organization policy must permit that write access.
+Stable tags must use `vMAJOR.MINOR.PATCH`. The tag supplies the application version; the workflow run number supplies the build number. **Both universal builds, native tests on both CPU families and macOS baselines, and DMG checks must succeed**, and all four expected downloads must be present, before the release job publishes anything. Pull requests, non-default branches, and manual dispatches never publish. The release job alone receives repository write permission through `GITHUB_TOKEN`; no personal token is needed. Repository/organization policy must permit that write access.
 
 Existing releases and their assets are not overwritten. To publish a changed build, push a new commit for a new preview run, or use a new version tag for a stable release.
 

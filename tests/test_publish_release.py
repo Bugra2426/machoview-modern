@@ -41,10 +41,10 @@ class ReleaseTests(unittest.TestCase):
         }
         self.names = []
         for baseline in ("macos-15", "macos-26"):
-            directory = self.source / f"MachOView-{baseline}-arm64"
+            directory = self.source / f"MachOView-{baseline}-universal"
             directory.mkdir(parents=True)
             for extension in ("dmg", "zip"):
-                name = f"MachOView-2.5.0-{baseline}-arm64.{extension}"
+                name = f"MachOView-2.5.0-{baseline}-universal.{extension}"
                 (directory / name).write_bytes(name.encode())
                 self.names.append(name)
 
@@ -130,7 +130,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertFalse(self.dist.exists())
 
     def test_missing_one_os_dmg_prevents_publication(self):
-        (self.source / "MachOView-macos-26-arm64" / "MachOView-2.5.0-macos-26-arm64.dmg").unlink()
+        (self.source / "MachOView-macos-26-universal" / "MachOView-2.5.0-macos-26-universal.dmg").unlink()
         result = self.publish()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Missing tested release asset", result.stderr)
@@ -138,7 +138,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertFalse(self.dist.exists())
 
     def test_empty_asset_prevents_publication(self):
-        (self.source / "MachOView-macos-15-arm64" / "MachOView-2.5.0-macos-15-arm64.zip").write_bytes(b"")
+        (self.source / "MachOView-macos-15-universal" / "MachOView-2.5.0-macos-15-universal.zip").write_bytes(b"")
         self.assertNotEqual(self.publish().returncode, 0)
         self.assertFalse(self.log.exists())
 

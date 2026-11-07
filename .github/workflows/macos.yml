@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.runner }} / Apple Silicon
+    name: ${{ matrix.runner }} / Universal build
     strategy:
       fail-fast: false
       matrix:
@@ -69,13 +69,13 @@ jobs:
           printf 'RELEASE_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
 
-      - name: Build native release
+      - name: Build universal release
         run: |
           set -euo pipefail
           xcodebuild -project machoview.xcodeproj -scheme MachOView \
             -configuration Release -destination 'generic/platform=macOS' \
             -derivedDataPath build/DerivedData \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            'ARCHS=arm64 x86_64' ONLY_ACTIVE_ARCH=NO \
             MACOSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
             MARKETING_VERSION="$RELEASE_VERSION" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
@@ -86,11 +86,11 @@ jobs:
         run: |
           set -euo pipefail
           app=build/DerivedData/Build/Products/Release/MachOView.app
-          bash scripts/verify-app.sh "$app" arm64
-          # Timeout catches parser deadlocks; no Rosetta or Xcode lookup fallback.
+          bash scripts/verify-app.sh "$app" universal
+          # Run the ARM64 slice natively here; Intel runners test the same download below.
           python3 -I - "$app/Contents/MacOS/MachOView" <<'PY'
           import subprocess, sys
-          subprocess.run([sys.argv[1], '--self-test'], check=True, timeout=120)
+          subprocess.run(['/usr/bin/arch', '-arm64', sys.argv[1], '--self-test'], check=True, timeout=120)
           PY
 
       - name: Prepare DMG packaging tools
@@ -106,15 +106,15 @@ jobs:
           set -euo pipefail
           mkdir -p build/artifacts
           app=build/DerivedData/Build/Products/Release/MachOView.app
-          name="MachOView-$RELEASE_VERSION-${{ matrix.runner }}-arm64"
-          bash scripts/package-dmg.sh "$app" "build/artifacts/$name.dmg" arm64 2>&1 | tee packaging.log
+          name="MachOView-$RELEASE_VERSION-${{ matrix.runner }}-universal"
+          bash scripts/package-dmg.sh "$app" "build/artifacts/$name.dmg" universal 2>&1 | tee packaging.log
           ditto -c -k --sequesterRsrc --keepParent "$app" "build/artifacts/$name.zip"
           (cd build/artifacts && shasum -a 256 ./*.dmg ./*.zip > SHA256SUMS.txt)
 
       - name: Upload native application
         uses: actions/upload-artifact@v4
         with:
-          name: MachOView-${{ matrix.runner }}-arm64
+          name: MachOView-${{ matrix.runner }}-universal
           path: build/artifacts/
           if-no-files-found: error
           retention-days: 30
@@ -129,9 +129,62 @@ jobs:
             packaging.log
           if-no-files-found: ignore
 
+  test-intel:
+    name: ${{ matrix.runner }} / Native Intel test
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            baseline: macos-15
+          - runner: macos-26-intel
+            baseline: macos-26
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download the packaged universal app
+        uses: actions/download-artifact@v4
+        with:
+          name: MachOView-${{ matrix.baseline }}-universal
+          path: build/artifacts
+
+      - name: Verify and test the shipped Intel slice without Rosetta
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          {
+            test "$(uname -m)" = x86_64
+            test "$(sysctl -in sysctl.proc_translated 2>/dev/null || true)" != 1
+            sw_vers
+            (cd build/artifacts && shasum -a 256 -c SHA256SUMS.txt)
+            ditto -x -k "build/artifacts/MachOView-$RELEASE_VERSION-${{ matrix.baseline }}-universal.zip" build/intel-test
+            app=build/intel-test/MachOView.app
+            bash scripts/verify-app.sh "$app" universal
+            python3 -I - "$app/Contents/MacOS/MachOView" <<'PY'
+          import subprocess, sys
+          subprocess.run(['/usr/bin/arch', '-x86_64', sys.argv[1], '--self-test'], check=True, timeout=120)
+          PY
+          } 2>&1 | tee intel-test.log
+
+      - name: Upload Intel test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intel-test-log-${{ matrix.baseline }}
+          path: intel-test.log
+          if-no-files-found: ignore
+
   release:
     name: Publish tested downloads
-    needs: build
+    needs: [build, test-intel]
     if: >-
       github.event_name == 'push' &&
       (startsWith(github.ref, 'refs/tags/v') ||
@@ -146,7 +199,7 @@ jobs:
       - name: Download both tested DMG and ZIP artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: MachOView-*-arm64
+          pattern: MachOView-*-universal
           path: release-artifacts
 
       - name: Publish stable release or default-branch preview

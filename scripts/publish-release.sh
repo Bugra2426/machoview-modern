@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs only in the release job after BOTH native build/package jobs succeed.
+# Runs only after both universal builds and both native Intel test jobs succeed.
 set -euo pipefail
 
 if [[ $# != 2 ]]; then
@@ -55,8 +55,8 @@ fi
 assets=()
 for baseline in macos-15 macos-26; do
   for extension in dmg zip; do
-    name="MachOView-$RELEASE_VERSION-$baseline-arm64.$extension"
-    input="$source_dir/MachOView-$baseline-arm64/$name"
+    name="MachOView-$RELEASE_VERSION-$baseline-universal.$extension"
+    input="$source_dir/MachOView-$baseline-universal/$name"
     if [[ ! -s "$input" || -L "$input" ]]; then
       printf 'error: Missing tested release asset: %s\n' "$input" >&2
       exit 1
@@ -75,15 +75,15 @@ printf '%s\n\n' "$release_summary" > "$notes"
 printf '%s\n' \
   '## Install' \
   '' \
-  '- **macOS 15 or later:** choose the `macos-15-arm64.dmg` build.' \
-  '- **macOS 26 or later:** either build works; `macos-26-arm64.dmg` uses the newer toolchain/baseline.' \
+  '- **macOS 15 or later:** choose the `macos-15-universal.dmg` build.' \
+  '- **macOS 26 or later:** either build works; `macos-26-universal.dmg` uses the newer toolchain/baseline.' \
   '- Open the DMG, drag **MachOView** to **Applications**, then eject the disk image.' \
   '- ZIP downloads are also provided. `SHA256SUMS.txt` covers all four downloads.' \
   '' \
   '## Build and security' \
   '' \
-  'Native Apple Silicon (arm64), optimized Release builds. No Rosetta, Xcode, or Homebrew is needed to run the app.' \
-  'Both macOS builds, native regression tests, and DMG verification must pass before this release is published.' \
+  'Universal 2 app: native Apple Silicon (arm64) and Intel (x86_64) in the same download. Optimized Release builds; no Rosetta, Xcode, or Homebrew is needed to run the app.' \
+  'Both macOS builds, native ARM64 and Intel regression tests, and DMG verification must pass before this release is published.' \
   '' \
   '**Ad-hoc signed, not Developer ID signed or Apple notarized.** If macOS blocks opening, verify that you trust the download and use the app-specific Privacy & Security → Open Anyway option if offered. Do not disable Gatekeeper globally.' \
   '' \
