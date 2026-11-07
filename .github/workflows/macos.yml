@@ -44,6 +44,7 @@ jobs:
           xcodebuild -version
           xcrun --sdk macosx --show-sdk-version
           sw_vers
+          /bin/bash --version
           python3 -I scripts/check-project.py
           python3 -I -m unittest discover -s tests -p 'test_*.py' -v
           for script in scripts/*.sh; do bash -n "$script"; done

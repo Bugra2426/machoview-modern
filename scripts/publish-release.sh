@@ -13,9 +13,13 @@ fi
 : "${GITHUB_RUN_NUMBER:?}"
 : "${DEFAULT_BRANCH:?}"
 : "${RELEASE_VERSION:?}"
-[[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-[[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
-[[ "$GITHUB_RUN_NUMBER" =~ ^[0-9]+$ ]]
+fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+# macOS ships Bash 3.2: errexit does not reject bare [[ ... ]] compound
+# commands there as it does in newer Bash. Every guard must exit explicitly.
+[[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'RELEASE_VERSION must use MAJOR.MINOR.PATCH.'
+[[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || fail 'GITHUB_SHA must be a full 40-character commit hash.'
+[[ "$GITHUB_RUN_NUMBER" =~ ^[0-9]+$ ]] || fail 'GITHUB_RUN_NUMBER must be numeric.'
 
 # Defense in depth: dispatches, PRs, and non-default branch pushes never publish.
 if [[ "$GITHUB_EVENT_NAME" != push ]]; then
@@ -24,7 +28,7 @@ if [[ "$GITHUB_EVENT_NAME" != push ]]; then
 fi
 if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
   release_tag="${GITHUB_REF#refs/tags/}"
-  [[ "$release_tag" == "v$RELEASE_VERSION" ]]
+  [[ "$release_tag" == "v$RELEASE_VERSION" ]] || fail "Release tag must match v$RELEASE_VERSION exactly."
   release_title="MachOView $release_tag"
   release_options=(--verify-tag)
   release_summary='Stable version-tagged release.'
@@ -40,7 +44,7 @@ fi
 
 source_dir=$1
 dist=$2
-[[ -d "$source_dir" ]]
+[[ -d "$source_dir" ]] || fail "Downloaded artifact directory does not exist: $source_dir"
 if [[ -e "$dist" || -L "$dist" ]]; then
   printf 'error: Refusing to overwrite output directory: %s\n' "$dist" >&2
   exit 1
