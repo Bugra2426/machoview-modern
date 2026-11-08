@@ -204,6 +204,125 @@ static void MVTestHeaderBounds(void)
   MVCheck(controller.rootNode.numberOfChildren != 0, @"Parser creates header details");
 }
 
+// Collect every node of the tree, using the same thread-safe accessors as the UI.
+static void MVCollectNodes(MVNode * node, NSMutableArray * nodes)
+{
+  [nodes addObject:node];
+  for (NSUInteger index = 0; index < node.numberOfChildren; ++index)
+  {
+    MVNode * child = [node childAtIndex:index];
+    if (child != nil) MVCollectNodes(child, nodes);
+  }
+}
+
+// Mimic a user clicking through the tree (outlineViewSelectionDidChange) and
+// scrolling the details table while the background parser is still running.
+static void MVBrowseLikeUI(MVDataController * controller, NSUInteger pass)
+{
+  NSMutableArray * nodes = [[NSMutableArray alloc] init];
+  MVCollectNodes(controller.rootNode, nodes);
+  for (MVNode * node in nodes)
+  {
+    @autoreleasepool
+    {
+      MVNode * previous = controller.selectedNode;
+      if (previous == node) continue;
+      [previous closeDetails];
+      controller.selectedNode = node;
+      [node openDetails];
+      [node filterDetails:(pass % 3 == 2) ? @"_main" : nil];
+      MVTable * details = node.details;
+      if (details == nil)
+      {
+        (void)node.dataRange; // hex view: data comes straight from fileData
+        continue;
+      }
+      NSUInteger count = MIN(details.rowCountToDisplay, (NSUInteger)256);
+      for (NSUInteger row = 0; row < count; ++row)
+      {
+        MVRow * displayed = [details getRowToDisplay:row];
+        (void)[displayed coloumnAtIndex:DESCRIPTION_COLUMN];
+        (void)displayed.attributes;
+      }
+    }
+  }
+  [controller.selectedNode closeDetails];
+  controller.selectedNode = nil;
+}
+
+// Open a real file exactly like -[MVDocument readFromURL:] and
+// -windowControllerDidLoadNib:, then browse it while it is still loading.
+static void MVTestRealBinary(NSString * path)
+{
+  NSLog(@"Real-binary test: %@", path);
+  MVDataController * controller = [[MVDataController alloc] init];
+  controller.fileName = path;
+  NSError * error = nil;
+  controller.fileData = [NSMutableData dataWithContentsOfURL:[NSURL fileURLWithPath:path]
+                                                     options:NSDataReadingMappedIfSafe
+                                                       error:&error];
+  MVCheck(controller.fileData != nil, [NSString stringWithFormat:@"Cannot read %@: %@", path, error]);
+  controller.realData = [controller.fileData mutableCopy];
+  [controller createLayouts:controller.rootNode location:0 length:controller.fileData.length];
+  MVCheck(controller.layouts.count != 0, [NSString stringWithFormat:@"No layouts for %@", path]);
+
+  __block int64_t active = 0;
+  id observer = [[NSNotificationCenter defaultCenter]
+    addObserverForName:MVThreadStateChangedNotification object:controller queue:nil
+            usingBlock:^(NSNotification * note) {
+              NSString * state = note.userInfo[MVStatusUserInfoKey];
+              if ([state isEqualToString:MVStatusTaskStarted]) __atomic_add_fetch(&active, 1, __ATOMIC_SEQ_CST);
+              else if ([state isEqualToString:MVStatusTaskTerminated]) __atomic_sub_fetch(&active, 1, __ATOMIC_SEQ_CST);
+            }];
+  @try
+  {
+    for (MVLayout * layout in controller.layouts) [layout doMainTasks];
+    for (MVLayout * layout in controller.layouts) [layout startBackgroundTasks];
+
+    NSDate * deadline = [NSDate dateWithTimeIntervalSinceNow:240];
+    for (NSUInteger pass = 0; __atomic_load_n(&active, __ATOMIC_SEQ_CST) > 0; ++pass)
+    {
+      MVCheck([deadline timeIntervalSinceNow] > 0,
+              [NSString stringWithFormat:@"Background parsing of %@ did not finish", path]);
+      MVBrowseLikeUI(controller, pass);
+      [NSThread sleepForTimeInterval:0.01];
+    }
+    // And once more after everything has been archived to the swap file.
+    for (MVLayout * layout in controller.layouts) [layout.archiver flush];
+    MVBrowseLikeUI(controller, 0);
+    MVBrowseLikeUI(controller, 2);
+    for (MVLayout * layout in controller.layouts)
+      MVCheck([layout.archiver canArchive], [NSString stringWithFormat:@"Archiving failed for %@", path]);
+    MVCheck(controller.rootNode.numberOfChildren != 0, [NSString stringWithFormat:@"Empty tree for %@", path]);
+  }
+  @finally
+  {
+    [[NSNotificationCenter defaultCenter] removeObserver:observer];
+    for (MVLayout * layout in controller.layouts) [layout.backgroundThread cancel];
+  }
+}
+
+static void MVTestRealBinaries(void)
+{
+  NSMutableArray<NSString *> * paths = [NSMutableArray arrayWithObjects:
+    NSBundle.mainBundle.executablePath ?: @"",  // universal app: fat + arm64 + x86_64
+    @"/bin/ls",                                  // system arm64e/x86_64 executable
+    @"/usr/lib/dyld",                            // large system binary on disk
+    nil];
+  // CI adds e.g. a static archive: MV_SELFTEST_FILES=/path/a.a:/path/b
+  NSString * extra = NSProcessInfo.processInfo.environment[@"MV_SELFTEST_FILES"];
+  if (extra.length != 0) [paths addObjectsFromArray:[extra componentsSeparatedByString:@":"]];
+  for (NSString * path in paths)
+  {
+    if (path.length == 0 || ![[NSFileManager defaultManager] isReadableFileAtPath:path])
+    {
+      NSLog(@"Real-binary test: skipping unreadable %@", path);
+      continue;
+    }
+    @autoreleasepool { MVTestRealBinary(path); }
+  }
+}
+
 int MVRunDataControllerTests(void)
 {
   // A hard timeout also covers unexpected lock-order regressions in flush/load.
@@ -218,6 +337,8 @@ int MVRunDataControllerTests(void)
         MVTestConcurrentProducers();
         MVTestHeaderBounds();
         NSLog(@"Data-controller regression tests passed");
+        MVTestRealBinaries();
+        NSLog(@"Real-binary loading tests passed");
         result = 0;
       }
       @catch (NSException * exception)
@@ -227,9 +348,9 @@ int MVRunDataControllerTests(void)
       @finally { dispatch_semaphore_signal(finished); }
     }
   });
-  if (dispatch_semaphore_wait(finished, dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC)) != 0)
+  if (dispatch_semaphore_wait(finished, dispatch_time(DISPATCH_TIME_NOW, 600 * NSEC_PER_SEC)) != 0)
   {
-    NSLog(@"Data-controller regression tests timed out after 60 seconds");
+    NSLog(@"Data-controller regression tests timed out after 600 seconds");
     return 1;
   }
   return result;

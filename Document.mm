@@ -507,7 +507,16 @@ enum ViewType
   statusText.stringValue = @"Loading...";
   for (MVLayout * layout in dataController.layouts)
   {
-    [layout doMainTasks];
+    // Malformed or unexpected load commands raise; never let that escape into
+    // AppKit while the window is being set up. Show what was parsed so far.
+    @try
+    {
+      [layout doMainTasks];
+    }
+    @catch (NSException * exception)
+    {
+      [layout printException:exception caption:@"Main processing"];
+    }
   }
   
   // refresh initial view

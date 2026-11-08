@@ -88,10 +88,21 @@ jobs:
           app=build/DerivedData/Build/Products/Release/MachOView.app
           bash scripts/verify-app.sh "$app" universal
           # Run the ARM64 slice natively here; Intel runners test the same download below.
+          # Also load a real universal static archive from the toolchain, if present.
+          archive=$(ls "$(dirname "$(xcrun -f clang)")"/../lib/clang/*/lib/darwin/libclang_rt.osx.a 2>/dev/null | head -n 1 || true)
+          export MV_SELFTEST_FILES="$archive"
           python3 -I - "$app/Contents/MacOS/MachOView" <<'PY'
           import subprocess, sys
-          subprocess.run(['/usr/bin/arch', '-arm64', sys.argv[1], '--self-test'], check=True, timeout=120)
+          subprocess.run(['/usr/bin/arch', '-arm64', sys.argv[1], '--self-test'], check=True, timeout=900)
           PY
+
+      - name: Show crash reports from the self-test
+        if: failure()
+        run: |
+          for report in ~/Library/Logs/DiagnosticReports/MachOView*; do
+            [ -f "$report" ] && { printf '===== %s\n' "$report"; head -c 200000 "$report"; }
+          done
+          true
 
       - name: Prepare DMG packaging tools
         run: |
@@ -141,7 +152,7 @@ jobs:
           - runner: macos-26-intel
             baseline: macos-26
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -170,9 +181,17 @@ jobs:
             bash scripts/verify-app.sh "$app" universal
             python3 -I - "$app/Contents/MacOS/MachOView" <<'PY'
           import subprocess, sys
-          subprocess.run(['/usr/bin/arch', '-x86_64', sys.argv[1], '--self-test'], check=True, timeout=120)
+          subprocess.run(['/usr/bin/arch', '-x86_64', sys.argv[1], '--self-test'], check=True, timeout=900)
           PY
           } 2>&1 | tee intel-test.log
+
+      - name: Show crash reports from the Intel self-test
+        if: failure()
+        run: |
+          for report in ~/Library/Logs/DiagnosticReports/MachOView*; do
+            [ -f "$report" ] && { printf '===== %s\n' "$report"; head -c 200000 "$report"; }
+          done
+          true
 
       - name: Upload Intel test log
         if: always()
