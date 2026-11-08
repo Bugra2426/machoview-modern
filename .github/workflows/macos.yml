@@ -99,6 +99,15 @@ jobs:
       - name: Show crash reports from the self-test
         if: failure()
         run: |
+          app=build/DerivedData/Build/Products/Release/MachOView.app
+          if [ -x "$app/Contents/MacOS/MachOView" ]; then
+            archive=$(ls "$(dirname "$(xcrun -f clang)")"/../lib/clang/*/lib/darwin/libclang_rt.osx.a 2>/dev/null | head -n 1 || true)
+            # Re-run under the debugger to print the crashing stack.
+            MV_SELFTEST_FILES="$archive" timeout 900 lldb --batch \
+              -o 'process launch -- --self-test' \
+              -k 'thread backtrace all' -k 'quit 1' \
+              -- "$app/Contents/MacOS/MachOView" 2>&1 | grep -v 'Real-binary test\|finished parsing' | tail -n 400 || true
+          fi
           for report in ~/Library/Logs/DiagnosticReports/MachOView*; do
             [ -f "$report" ] && { printf '===== %s\n' "$report"; head -c 200000 "$report"; }
           done
