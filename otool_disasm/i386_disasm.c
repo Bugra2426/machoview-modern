@@ -4498,6 +4498,7 @@ void *DisInfo,
 uint64_t Pc,
 uint64_t Offset,
 uint64_t Width,
+uint64_t InstSize, /* LLVM 16+ callback ABI; unused */
 int TagType,     /* should currently always be passed as 1 */
 void *TagBuf)
 {
@@ -4704,6 +4705,7 @@ void *DisInfo,
 uint64_t Pc,
 uint64_t Offset,
 uint64_t Width,
+uint64_t InstSize, /* LLVM 16+ callback ABI; unused */
 int TagType,     /* should currently always be passed as 1 */
 void *TagBuf)
 {

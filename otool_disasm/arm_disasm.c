@@ -186,6 +186,7 @@ void *DisInfo,
 uint64_t Pc,
 uint64_t Offset, /* should always be passed as 0 for arm or thumb */
 uint64_t Size,   /* should always be passed as 4 for arm or 2 or 4 for thumb */
+uint64_t InstSize, /* LLVM 16+ callback ABI; unused */
 int TagType,     /* should always be passed as 1 for either Triple */
 void *TagBuf)
 {

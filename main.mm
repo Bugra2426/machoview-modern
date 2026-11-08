@@ -12,7 +12,7 @@ static int MVRunDisassemblerTests(void)
     const char *name;
     cpu_type_t architecture;
     cpu_subtype_t subtype;
-    uint8_t bytes[4];
+    uint8_t bytes[8];
     size_t length;
     const char *mnemonic;
   } tests[] = {
@@ -22,6 +22,11 @@ static int MVRunDisassemblerTests(void)
     {"arm64e with capability bits", CPU_TYPE_ARM64,
       (cpu_subtype_t)(CPU_SUBTYPE_ARM64E | CPU_SUBTYPE_LIB64), {0x3f, 0x23, 0x03, 0xd5}, 4, "paciasp"},
     {"x86_64", CPU_TYPE_X86_64, CPU_SUBTYPE_X86_64_ALL, {0xc3, 0, 0, 0}, 1, "ret"},
+    // Operand-bearing instructions invoke the op-info callback, whose ABI
+    // changed in LLVM 16. A bare "ret" never exercised it.
+    {"x86_64 operand callback", CPU_TYPE_X86_64, CPU_SUBTYPE_X86_64_ALL, {0xe8, 0, 0, 0, 0}, 5, "call"},
+    {"x86_64 immediate callback", CPU_TYPE_X86_64, CPU_SUBTYPE_X86_64_ALL, {0xb8, 0x2a, 0, 0, 0}, 5, "mov"},
+    {"arm64 operand callback", CPU_TYPE_ARM64, CPU_SUBTYPE_ARM64_ALL, {0x00, 0x00, 0x00, 0x94}, 4, "bl"},
   };
   for (auto &test : tests)
   {

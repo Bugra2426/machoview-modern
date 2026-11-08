@@ -47,8 +47,14 @@ typedef void *LLVMDisasmContextRef;
  * TagType for that Triple.  If symbolic information is returned the function
  * returns 1, otherwise it returns 0.
  */
+/*
+ * LLVM 16 (D133224) added InstSize after OpSize. Every Xcode able to build this
+ * app (macOS 15 SDK and later) ships a libLTO with this ABI. A callback using the
+ * old 6-argument form receives TagType in TagBuf and crashes on real code.
+ */
 typedef int (*LLVMOpInfoCallback)(void *DisInfo, uint64_t Pc,
-                                  uint64_t Offset, uint64_t Size,
+                                  uint64_t Offset, uint64_t OpSize,
+                                  uint64_t InstSize,
                                   int TagType, void *TagBuf);
 
 /**
